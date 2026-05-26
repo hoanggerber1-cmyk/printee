@@ -439,4 +439,238 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
                             <button type="button" onClick={() => setEditingProduct(null)} className="hover:text-gray-300 font-bold">✕ ĐÓNG</button>
                           </div>
                           
-                          <div className="p-6 space-y-6 flex-1 text-left bg-gray-50/
+                          <div className="p-6 space-y-6 flex-1 text-left bg-gray-50/50">
+                            
+                            {/* 1. Tên và Danh mục liên kết */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="font-bold block mb-1 text-gray-700">Tên sản phẩm / Phôi áo</label>
+                                <input type="text" required value={editingProduct.name || ''} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full border border-gray-300 p-2.5 rounded bg-white outline-none focus:border-brand-gold"/>
+                              </div>
+                              <div>
+                                <label className="font-bold block mb-1 text-gray-700">Thuộc danh mục phôi</label>
+                                <select 
+                                  value={editingProduct.category_id || (categories.length > 0 ? categories[0].id : '')} 
+                                  onChange={e => setEditingProduct({...editingProduct, category_id: e.target.value})} 
+                                  className="w-full border border-gray-300 p-2.5 rounded bg-white font-medium outline-none focus:border-brand-gold"
+                                >
+                                  {categories.length === 0 && <option value="">-- Chưa có danh mục nào --</option>}
+                                  {categories.map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* 2. Giá cả và Kho số lượng */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="font-bold block mb-1 text-gray-700">Giá bán gốc (VNĐ)</label>
+                                <input type="number" required value={editingProduct.price || ''} onChange={e => setEditingProduct({...editingProduct, price: Number(e.target.value)})} className="w-full border border-gray-300 p-2.5 rounded bg-white outline-none focus:border-brand-gold font-mono"/>
+                              </div>
+                              <div>
+                                <label className="font-bold block mb-1 text-gray-700">Số lượng tồn kho ban đầu</label>
+                                <input type="number" value={editingProduct.inventory ?? 100} onChange={e => setEditingProduct({...editingProduct, inventory: Number(e.target.value)})} className="w-full border border-gray-300 p-2.5 rounded bg-white outline-none focus:border-brand-gold font-mono"/>
+                              </div>
+                            </div>
+
+                            {/* 3. DANH SÁCH BIẾN THỂ (GẮN MÀU VỚI ẢNH) */}
+                            <div className="space-y-3 bg-white p-4 border border-gray-200 rounded shadow-sm">
+                              <div className="flex justify-between items-center pb-2 border-b border-dashed border-gray-300">
+                                <label className="font-bold text-brand-charcoal uppercase tracking-wider text-[11px]">
+                                  Danh Sách Màu & Ảnh Sản Phẩm
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingProduct({
+                                      ...editingProduct,
+                                      colors: [...(editingProduct.colors || []), '#111111'],
+                                      images: [...(editingProduct.images || []), '']
+                                    });
+                                  }}
+                                  className="bg-brand-gold text-brand-charcoal font-bold text-[10px] px-3 py-1.5 rounded flex items-center gap-1 hover:bg-yellow-500 shadow-sm transition"
+                                >
+                                  <Plus size={12}/> THÊM MÀU MỚI
+                                </button>
+                              </div>
+
+                              <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
+                                {(editingProduct.colors || []).map((color, idx) => {
+                                  const image = (editingProduct.images || [])[idx] || '';
+                                  return (
+                                    <div key={idx} className="flex flex-col sm:flex-row items-start gap-4 p-4 bg-gray-50 border border-gray-200 rounded relative group">
+                                      {/* Nút xóa Block này */}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const newColors = [...(editingProduct.colors || [])];
+                                          newColors.splice(idx, 1);
+                                          const newImages = [...(editingProduct.images || [])];
+                                          newImages.splice(idx, 1);
+                                          setEditingProduct({...editingProduct, colors: newColors, images: newImages});
+                                        }}
+                                        className="absolute -top-2 -right-2 bg-white text-gray-400 hover:text-white hover:bg-red-500 border border-gray-200 rounded-full w-6 h-6 flex items-center justify-center transition shadow-sm z-10"
+                                        title="Xóa biến thể này"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+
+                                      {/* Cột 1: Bảng Chọn Màu */}
+                                      <div className="w-full sm:w-5/12 space-y-2 sm:border-r border-gray-200 sm:pr-4">
+                                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">1. Chọn màu sắc</label>
+                                        <div className="flex flex-wrap gap-2 items-center">
+                                          {/* Màu có sẵn */}
+                                          {['#111111', '#FFFFFF', '#7E7C77', '#1B2C3F', '#3B4C3A', '#F4EFEB', '#E36414', '#591A2A'].map(preset => (
+                                            <div
+                                                key={preset}
+                                                onClick={() => {
+                                                  const newColors = [...(editingProduct.colors || [])];
+                                                  newColors[idx] = preset;
+                                                  setEditingProduct({...editingProduct, colors: newColors});
+                                                }}
+                                                className={`w-6 h-6 rounded border cursor-pointer transition-transform hover:scale-110 ${color === preset ? 'ring-2 ring-brand-gold ring-offset-1 border-transparent' : 'border-gray-300 shadow-sm'}`}
+                                                style={{ backgroundColor: preset }}
+                                                title={preset}
+                                            />
+                                          ))}
+                                          
+                                          <div className="w-px h-6 bg-gray-300 mx-1"></div>
+                                          
+                                          {/* Bảng pha màu tuỳ chỉnh OS Native */}
+                                          <label className="flex items-center justify-center w-6 h-6 rounded border border-dashed border-gray-500 cursor-pointer hover:border-brand-gold hover:bg-yellow-50 relative bg-white transition" title="Pha màu tuỳ chỉnh">
+                                            <span className="text-sm font-bold text-gray-600 pb-0.5">+</span>
+                                            <input
+                                              type="color"
+                                              value={color}
+                                              onChange={(e) => {
+                                                  const newColors = [...(editingProduct.colors || [])];
+                                                  newColors[idx] = e.target.value;
+                                                  setEditingProduct({...editingProduct, colors: newColors});
+                                              }}
+                                              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                                            />
+                                          </label>
+                                        </div>
+                                        <div className="text-[10px] text-gray-400 font-mono pt-1">
+                                          Mã đang chọn: <span className="font-bold text-brand-charcoal bg-gray-200 px-1.5 py-0.5 rounded">{color.toUpperCase()}</span>
+                                        </div>
+                                      </div>
+
+                                      {/* Cột 2: Upload Ảnh */}
+                                      <div className="w-full sm:w-7/12 space-y-2 sm:pl-2">
+                                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">2. Tải ảnh cho màu này</label>
+                                        <div className="flex items-center gap-3">
+                                          {image ? (
+                                            <img src={image} className="w-16 h-16 object-cover rounded border border-gray-300 shadow-sm bg-white" alt="preview" />
+                                          ) : (
+                                            <div className="w-16 h-16 rounded border border-dashed border-gray-300 flex items-center justify-center bg-white text-gray-300">
+                                              <Image size={20} />
+                                            </div>
+                                          )}
+                                          <div className="flex-1">
+                                            <input
+                                              type="file"
+                                              accept="image/*"
+                                              onChange={(e) => handleSingleImageUpload(e, 'products', (url) => {
+                                                const newImages = [...(editingProduct.images || [])];
+                                                newImages[idx] = url;
+                                                setEditingProduct({...editingProduct, images: newImages});
+                                              })}
+                                              className="w-full border border-gray-300 p-1 text-[10px] bg-white rounded cursor-pointer outline-none focus:border-brand-gold 
+                                                         file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-[10px] file:font-bold file:uppercase file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                    </div>
+                                  )
+                                })}
+
+                                {(!editingProduct.colors || editingProduct.colors.length === 0) && (
+                                  <div className="text-center p-8 border-2 border-dashed border-gray-300 rounded bg-white text-gray-500 text-xs">
+                                    Sản phẩm chưa có màu sắc. Bấm nút <strong className="text-brand-charcoal px-1">THÊM MÀU MỚI</strong> ở góc phải để bắt đầu thiết lập màu và ảnh đại diện!
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* 4. Mô tả chi tiết */}
+                            <div>
+                              <label className="font-bold block mb-1 text-gray-700">Mô tả thông số chi tiết sản phẩm</label>
+                              <textarea rows={4} value={editingProduct.description || ''} onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} className="w-full border border-gray-300 p-2.5 rounded bg-white outline-none focus:border-brand-gold" placeholder="Nhập chất liệu vải, định lượng GSM, cách bảo quản hoặc hướng dẫn chọn size..."/>
+                            </div>
+                          </div>
+                          
+                          <div className="p-4 bg-white border-t sticky bottom-0 flex gap-4">
+                            <button type="submit" className="flex-1 bg-brand-gold py-3.5 font-bold uppercase rounded shadow-lg hover:bg-yellow-500 transition text-brand-charcoal tracking-widest text-xs">
+                              LƯU TOÀN BỘ THÔNG TIN SẢN PHẨM
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* TAB DANH MỤC */}
+                {activeTab === 'categories' && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <div className="flex justify-between items-center"><h3 className="font-bold text-sm uppercase">Danh mục phôi</h3><button onClick={() => setEditingCategory({ active: true, sort_order: 1 })} className="bg-brand-charcoal text-white text-xs px-4 py-2 rounded flex items-center gap-1"><Plus size={12}/> Thêm danh mục</button></div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      {categories.map(c => (
+                        <div key={c.id} className="bg-white border rounded p-4 space-y-2">
+                          <img src={c.image_url || 'https://via.placeholder.com/150'} className="w-full h-32 object-cover rounded border" alt=""/>
+                          <h4 className="font-bold text-sm">{c.name}</h4>
+                          <div className="flex gap-2"><button onClick={() => setEditingCategory(c)} className="border text-xs px-2 py-1 rounded">Sửa</button><button onClick={() => handleDelete('cat', c.id)} className="text-red-600 border text-xs px-2 py-1 rounded">Xóa</button></div>
+                        </div>
+                      ))}
+                    </div>
+                    {editingCategory && (
+                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                        <form onSubmit={handleSaveCategory} className="bg-white p-6 rounded w-full max-w-sm space-y-4 text-xs">
+                          <h4 className="font-bold text-sm border-b pb-2">CHỈNH SỬA DANH MỤC</h4>
+                          <input type="file" accept="image/*" onChange={e => handleSingleImageUpload(e, 'products', (url) => setEditingCategory({...editingCategory, image_url: url}))} className="w-full border p-2" />
+                          <input type="text" placeholder="Tên danh mục..." required value={editingCategory.name || ''} onChange={e => setEditingCategory({...editingCategory, name: e.target.value})} className="w-full border p-2 rounded"/>
+                          <div className="flex gap-2"><button type="submit" className="w-1/2 bg-brand-gold py-2 font-bold rounded">Lưu</button><button type="button" onClick={() => setEditingCategory(null)} className="w-1/2 bg-gray-200 py-2 rounded">Đóng</button></div>
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TAB BANNERS */}
+                {activeTab === 'banners' && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <div className="flex justify-between items-center"><h3 className="font-bold text-sm uppercase">Banner Trang Chủ</h3><button onClick={() => setEditingBanner({ active: true, sort_order: 1 })} className="bg-brand-charcoal text-white text-xs px-4 py-2 rounded flex items-center gap-1"><Plus size={12}/> Thêm Banner</button></div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {banners.map(b => (
+                        <div key={b.id} className="bg-white border rounded p-4 space-y-3">
+                          <img src={b.image_url} className="w-full h-40 object-cover rounded border" alt=""/>
+                          <h4 className="font-bold text-sm">{b.title}</h4>
+                          <div className="flex gap-2"><button onClick={() => setEditingBanner(b)} className="border text-xs px-3 py-1 rounded">Sửa</button><button onClick={() => handleDelete('banner', b.id)} className="text-red-600 border text-xs px-3 py-1 rounded">Xóa</button></div>
+                        </div>
+                      ))}
+                    </div>
+                    {editingBanner && (
+                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                        <form onSubmit={handleSaveBanner} className="bg-white p-6 rounded w-full max-w-md space-y-4 text-xs">
+                          <h4 className="font-bold text-sm border-b pb-2">CHỈNH SỬA BANNER</h4>
+                          <input type="file" accept="image/*" onChange={e => handleSingleImageUpload(e, 'banners', (url) => setEditingBanner({...editingBanner, image_url: url}))} className="w-full border p-2" />
+                          <input type="text" placeholder="Tiêu đề..." required value={editingBanner.title || ''} onChange={e => setEditingBanner({...editingBanner, title: e.target.value})} className="w-full border p-2 rounded"/>
+                          <div className="flex gap-2"><button type="submit" className="w-1/2 bg-brand-gold py-2 font-bold rounded">Lưu</button><button type="button" onClick={() => setEditingBanner(null)} className="w-1/2 bg-gray-200 py-2 rounded">Đóng</button></div>
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
