@@ -1,158 +1,139 @@
 import { useState, useEffect } from 'react';
-import { User, ShieldCheck, Edit, Eye, Menu, X } from 'lucide-react';
 import { dbSim } from '../supabaseClient';
 import { SiteSettings } from '../types';
+import { Menu, X, User } from 'lucide-react';
 
 interface HeaderProps {
   currentPage: string;
   setCurrentPage: (page: string) => void;
-  isAdmin: boolean;
-  cmsEditable: boolean;
-  setCmsEditable: (editable: boolean) => void;
-  customerUser: { email: string; full_name: string } | null;
-  adminUser: { email: string; role: string; full_name: string } | null;
-  logoutCustomer: () => void;
-  logoutAdmin: () => void;
+  isAdminLoggedIn: boolean;
 }
 
-export default function Header({
-  currentPage,
-  setCurrentPage,
-  isAdmin,
-  cmsEditable,
-  setCmsEditable,
-  customerUser,
-  adminUser,
-  logoutCustomer,
-  logoutAdmin
-}: HeaderProps) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+export default function Header({ currentPage, setCurrentPage, isAdminLoggedIn }: HeaderProps) {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
 
-  // Tự động kéo cấu hình website từ DB (Phase 3)
   useEffect(() => {
+    // Tải cài đặt website từ Supabase để lấy Logo và Topbar
     dbSim.settings.get().then(setSettings).catch(console.error);
-  }, []);
+  }, [currentPage]); // Tải lại khi chuyển trang để cập nhật nhanh nhất
 
   const navItems = [
-    { id: 'home', label: 'TRANG CHỦ' },
-    { id: 'catalog', label: 'CỬA HÀNG PHÔI' },
-    { id: 'custom-print', label: 'TỰ THIẾT KẾ & IN' },
-    { id: 'lookbook', label: 'LOOKBOOK' },
+    { id: 'home', label: 'Trang chủ' },
+    { id: 'catalog', label: 'Cửa hàng phôi' },
+    { id: 'custom-print', label: 'Tự thiết kế & In' },
+    { id: 'lookbook', label: 'Lookbook' }
   ];
 
+  const handleNavClick = (id: string) => {
+    setCurrentPage(id);
+    setIsMobileMenuOpen(false);
+  };
+
   return (
-    <header className="sticky top-0 z-50 bg-brand-ivory border-b border-brand-charcoal/5 backdrop-blur-md">
-      {/* Super Admin Status Strip */}
-      {(adminUser || customerUser) && (
-        <div className="bg-brand-charcoal text-brand-ivory text-xs px-4 py-2 flex justify-between items-center tracking-widest uppercase font-mono">
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 bg-brand-gold rounded-none animate-pulse"></span>
-            {adminUser ? (
-              <span>ADMIN: <strong className="text-brand-gold font-semibold">{adminUser.full_name} ({adminUser.role === 'super_admin' ? 'Super_Admin' : 'Admin'})</strong></span>
-            ) : (
-              <span>WELCOME: <strong className="text-brand-gold font-semibold">{customerUser?.full_name}</strong></span>
-            )}
-          </div>
-          <div className="flex items-center gap-4 text-xs font-sans">
-            {adminUser && (
-              <button
-                onClick={() => setCmsEditable(!cmsEditable)}
-                className={`flex items-center gap-1.5 px-3 py-1 font-semibold transition tracking-widest text-[10px] uppercase cursor-pointer ${
-                  cmsEditable ? 'bg-brand-gold text-brand-charcoal' : 'bg-brand-ivory/10 text-brand-ivory hover:bg-brand-ivory/20'
-                }`}
-                title="Cho phép sửa đổi trực tiếp văn bản, hình ảnh trên trang chủ"
-              >
-                {cmsEditable ? <Edit size={11} /> : <Eye size={11} />}
-                {cmsEditable ? 'CMS ACTIVE' : 'EDIT MODE'}
-              </button>
-            )}
-            <button onClick={adminUser ? logoutAdmin : logoutCustomer} className="text-[10px] underline hover:text-brand-gold-light uppercase tracking-widest font-semibold cursor-pointer">
-              LOGOUT
-            </button>
+    <>
+      {/* 1. THANH TOPBAR KHUYẾN MÃI CHẠY CHỮ */}
+      {settings?.topbar_text && (
+        <div className="bg-brand-gold text-brand-charcoal text-[10px] sm:text-xs font-bold uppercase tracking-widest py-2 px-4 text-center overflow-hidden whitespace-nowrap">
+          <div className="inline-block animate-[marquee_15s_linear_infinite]">
+            {settings.topbar_text} <span className="mx-8">•</span> {settings.topbar_text}
           </div>
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
-          {/* Logo Brand Động */}
-          <div className="flex-shrink-0 cursor-pointer" onClick={() => setCurrentPage('home')}>
-            <h1 className="text-[28px] sm:text-3xl tracking-[0.2em] text-brand-charcoal font-bold mt-1 uppercase">
-              {settings?.site_name || 'PRINTEE'}
-            </h1>
-            <p className="text-[8px] sm:text-[9px] tracking-[0.35em] font-sans text-brand-muted uppercase font-medium">
-              {settings?.topbar_text || 'EST. 2026 // Luxury Studio'}
-            </p>
-          </div>
+      {/* 2. MENU ĐIỀU HƯỚNG CHÍNH */}
+      <header className="bg-brand-ivory border-b border-brand-charcoal sticky top-0 z-40 transition-all duration-300">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-20">
+            
+            {/* LOGO ĐỘNG */}
+            <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => handleNavClick('home')}>
+              {settings?.logo_url ? (
+                <img src={settings.logo_url} alt={settings.site_name} className="h-10 object-contain" />
+              ) : (
+                <div className="flex flex-col">
+                  <span className="font-serif text-3xl font-bold tracking-widest text-brand-charcoal uppercase leading-none">
+                    {settings?.site_name || 'PRINTEE'}
+                  </span>
+                  <span className="text-[8px] tracking-[0.3em] text-brand-muted uppercase mt-1">
+                    {settings?.site_slogan || 'LUXURY STUDIO'}
+                  </span>
+                </div>
+              )}
+            </div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-8 lg:space-x-12">
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => { setCurrentPage(item.id); setMobileMenuOpen(false); }}
-                className={`relative py-2 text-xs font-semibold tracking-[0.25em] transition-colors duration-200 uppercase ${
-                  currentPage === item.id ? 'text-brand-charcoal font-bold' : 'text-brand-charcoal/60 hover:text-brand-charcoal'
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex space-x-8">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavClick(item.id)}
+                  className={`text-xs font-semibold uppercase tracking-[0.15em] transition-colors duration-300 ${
+                    currentPage === item.id 
+                      ? 'text-brand-charcoal border-b-2 border-brand-charcoal pb-1' 
+                      : 'text-brand-muted hover:text-brand-gold'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+
+            {/* Admin / Login Button */}
+            <div className="hidden md:flex items-center">
+              <button 
+                onClick={() => handleNavClick('admin')}
+                className={`text-[10px] font-bold uppercase tracking-widest px-5 py-2.5 transition-colors duration-300 flex items-center gap-2 border ${
+                  isAdminLoggedIn 
+                    ? 'bg-brand-charcoal text-brand-ivory border-brand-charcoal hover:bg-black' 
+                    : 'bg-transparent text-brand-charcoal border-brand-charcoal hover:bg-brand-charcoal hover:text-brand-ivory'
                 }`}
               >
-                {item.label}
-                {currentPage === item.id && <span className="absolute bottom-0 left-0 w-full h-[1.5px] bg-brand-charcoal"></span>}
+                <User size={14} />
+                {isAdminLoggedIn ? 'TRANG QUẢN TRỊ' : 'ĐĂNG NHẬP'}
               </button>
-            ))}
-          </nav>
+            </div>
 
-          {/* Action Tools */}
-          <div className="hidden md:flex items-center space-x-4">
-            <button
-              onClick={() => setCurrentPage(adminUser ? 'admin' : 'account')}
-              className={`p-2.5 rounded-none border transition flex items-center gap-2 px-5 py-2.5 text-xs font-semibold tracking-wider uppercase ${
-                currentPage === 'admin' || currentPage === 'account' ? 'border-brand-charcoal bg-brand-charcoal text-brand-ivory' : 'border-brand-charcoal/20 text-brand-charcoal hover:border-brand-charcoal bg-transparent'
-              }`}
-            >
-              {adminUser ? <><ShieldCheck size={14} /><span>TRANG QUẢN TRỊ</span></> : <><User size={13} /><span>{customerUser ? 'PARK / ACCOUNT' : 'ĐĂNG NHẬP'}</span></>}
-            </button>
-          </div>
-
-          {/* Mobile menu button */}
-          <div className="md:hidden flex items-center gap-3">
-            <button onClick={() => setCurrentPage(adminUser ? 'admin' : 'account')} className="p-1 px-3 py-1.5 border border-brand-charcoal/20 text-brand-charcoal rounded-none text-xs font-semibold flex items-center gap-1 bg-transparent">
-              {adminUser ? <ShieldCheck size={14} className="text-brand-gold" /> : <User size={14} />}
-              <span>{adminUser ? 'Admin' : customerUser ? 'Mở' : 'Login'}</span>
-            </button>
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-brand-charcoal hover:bg-brand-cream/50">
-              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
+            {/* Mobile menu button */}
+            <div className="md:hidden flex items-center">
+              <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-brand-charcoal">
+                {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-brand-ivory border-t border-brand-charcoal/5 py-4 px-6 space-y-3 animate-fadeIn">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => { setCurrentPage(item.id); setMobileMenuOpen(false); }}
-              className={`block w-full text-left py-2 text-xs font-semibold tracking-widest uppercase ${
-                currentPage === item.id ? 'text-brand-charcoal border-l-2 border-brand-charcoal pl-2' : 'text-brand-charcoal/60 pl-2'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-          <div className="pt-2 border-t border-brand-charcoal/5 flex flex-col gap-2">
-            {!adminUser && !customerUser && (
-              <button onClick={() => { setCurrentPage('account'); setMobileMenuOpen(false); }} className="w-full text-center py-3 bg-brand-charcoal text-brand-ivory text-xs tracking-widest uppercase font-semibold rounded-none cursor-pointer">
-                Đăng Nhập Khách Hàng
+        {/* Mobile Navigation */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden bg-brand-ivory border-t border-brand-charcoal/10 absolute w-full shadow-xl">
+            <div className="px-4 pt-2 pb-6 space-y-1">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavClick(item.id)}
+                  className="block w-full text-left px-3 py-4 text-sm font-semibold uppercase tracking-widest text-brand-charcoal border-b border-brand-charcoal/5"
+                >
+                  {item.label}
+                </button>
+              ))}
+              <button 
+                onClick={() => handleNavClick('admin')}
+                className="block w-full text-left px-3 py-4 text-sm font-semibold uppercase tracking-widest text-brand-gold mt-4"
+              >
+                {isAdminLoggedIn ? 'VÀO TRANG QUẢN TRỊ' : 'ĐĂNG NHẬP ADMIN'}
               </button>
-            )}
-            <button onClick={() => { setCurrentPage('admin'); setMobileMenuOpen(false); }} className="w-full text-center py-3 border border-brand-charcoal text-brand-charcoal text-xs tracking-widest uppercase font-semibold rounded-none cursor-pointer">
-              Quyền quản trị viên
-            </button>
+            </div>
           </div>
-        </div>
-      )}
-    </header>
+        )}
+      </header>
+
+      {/* Tailwind Style cho hiệu ứng chữ chạy */}
+      <style>{`
+        @keyframes marquee {
+          0% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
+      `}</style>
+    </>
   );
 }
