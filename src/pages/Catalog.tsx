@@ -101,21 +101,24 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
     try {
       setSubmittingOrder(true);
       
+      // LOGIC MỚI: Lấy đúng hình ảnh tương ứng với màu khách chọn cho Đơn Hàng
+      const colorIndex = selectedProduct.colors.indexOf(chosenColor);
+      const orderImage = selectedProduct.images[colorIndex !== -1 ? colorIndex : 0] || 'https://via.placeholder.com/150';
+      
       // Tạo cấu trúc đơn hàng đồng bộ trực tiếp vào bảng custom_orders của hệ thống
       const blankOrder: CustomOrder = {
         id: `ord-${Date.now()}`,
         customer_name: guestName,
-        customer_email: 'khachvanglai@printee.com', // Email mặc định cho khách mua nhanh
+        customer_email: 'khachvanglai@printee.com',
         customer_phone: guestPhone,
         customer_address: guestAddress,
-        // Lấy hình ảnh đầu tiên của sản phẩm làm hình hiển thị đơn hàng
-        design_file_url: selectedProduct.images[0] || 'https://via.placeholder.com/150',
+        design_file_url: orderImage, // Dùng hình ảnh đúng màu
         design_file_name: 'Mua phôi trơn (Không có file in)',
         shirt_type: selectedProduct.name,
         shirt_color: chosenColor || '#111111',
         shirt_size: chosenSize,
         quantity: Number(guestQuantity),
-        notes: 'ĐƠN MUA PHÔI TRƠN (KHÁCH VÃN LAI)', // Ghi chú đặc biệt để Admin nhận diện
+        notes: 'ĐƠN MUA PHÔI TRƠN (KHÁCH VÃN LAI)',
         status: 'pending',
         price_calc: selectedProduct.price * Number(guestQuantity),
         created_at: new Date().toISOString()
@@ -139,6 +142,13 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
       setSubmittingOrder(false);
     }
   };
+
+  // LOGIC MỚI: Dò tìm hình ảnh hiển thị khớp với màu đang chọn trong Popup
+  let displayImage = 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=800';
+  if (selectedProduct) {
+      const activeColorIndex = selectedProduct.colors.indexOf(chosenColor);
+      displayImage = selectedProduct.images[activeColorIndex !== -1 ? activeColorIndex : 0] || displayImage;
+  }
 
   return (
     <div className="py-12 bg-brand-ivory animate-fadeIn relative">
@@ -271,9 +281,14 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
               
               <button onClick={() => { setSelectedProduct(null); setIsGuestFormOpen(false); }} className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-brand-charcoal text-brand-ivory flex items-center justify-center hover:bg-brand-gold transition duration-200 shadow">✕</button>
 
-              {/* Bên trái: Ảnh */}
+              {/* Bên trái: Ảnh (ĐÃ ĐƯỢC CHỈNH SỬA UPDATE TỰ ĐỘNG THEO MÀU) */}
               <div className="aspect-[4/5] md:aspect-auto bg-brand-cream relative">
-                <img src={selectedProduct.images[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=800'} alt={selectedProduct.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                <img 
+                  src={displayImage} 
+                  alt={selectedProduct.name} 
+                  className="w-full h-full object-cover transition-opacity duration-300" 
+                  referrerPolicy="no-referrer" 
+                />
               </div>
 
               {/* Bên phải: Nội dung tương tác */}
