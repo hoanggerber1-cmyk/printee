@@ -31,6 +31,16 @@ export default function Home({ setCurrentPage, cmsEditable, onUpdateCms, cmsData
     loadData();
   }, [cmsData]); // Reload if CMS or database changes
 
+  // Tính năng tự động chạy Banner (Auto-slide)
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentBannerIdx((prevIdx) => (prevIdx + 1) % banners.length);
+    }, 4000); // 4000ms = 4 giây tự động đổi slide
+    
+    return () => clearInterval(interval);
+  }, [banners.length]);
+
   // Swatches for garment color showcase section
   const SWATCHES = [
     { name: 'Ivory Soft', hex: '#FDFCF7', desc: 'Sợi bông chưa tảy thô tự nhiên' },
@@ -321,164 +331,3 @@ export default function Home({ setCurrentPage, cmsEditable, onUpdateCms, cmsData
       <section className="py-24 bg-brand-dark-grey text-brand-ivory border-b border-black" id="workflow-section">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto space-y-4 mb-20">
-            <span className="text-xs tracking-widest text-brand-gold uppercase font-semibold">Cực Kỳ Đơn Giản & Minh Bạch</span>
-            <h2 className="text-3xl sm:text-4xl font-serif tracking-tight text-white">
-              {cmsEditable ? (
-                <CmsEditableText
-                  cmsEditable={cmsEditable}
-                  field="process_title"
-                  value={cmsData.process_title}
-                  onUpdate={handleCmsFieldUpdate}
-                  elementClass="text-brand-ivory font-serif text-3xl sm:text-4xl text-center"
-                />
-              ) : (
-                cmsData.process_title
-              )}
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative z-10">
-            {/* Step 1 */}
-            <div className="space-y-4 md:border-r border-brand-ivory/10 pr-4">
-              <h3 className="text-sm font-semibold tracking-widest text-brand-gold uppercase">
-                {cmsEditable ? (
-                  <CmsEditableText cmsEditable={cmsEditable} field="process_step1_title" value={cmsData.process_step1_title} onUpdate={handleCmsFieldUpdate} elementClass="text-brand-gold uppercase font-semibold text-sm" />
-                ) : (
-                  cmsData.process_step1_title
-                )}
-              </h3>
-              <p className="text-xs text-brand-muted font-light leading-relaxed">
-                {cmsEditable ? (
-                  <CmsEditableText cmsEditable={cmsEditable} field="process_step1_desc" value={cmsData.process_step1_desc} onUpdate={handleCmsFieldUpdate} multiline={true} elementClass="text-brand-muted text-xs leading-relaxed" />
-                ) : (
-                  cmsData.process_step1_desc
-                )}
-              </p>
-            </div>
-
-            {/* Step 2 */}
-            <div className="space-y-4 md:border-r border-brand-ivory/10 pr-4">
-              <h3 className="text-sm font-semibold tracking-widest text-brand-gold uppercase">
-                {cmsEditable ? (
-                  <CmsEditableText cmsEditable={cmsEditable} field="process_step2_title" value={cmsData.process_step2_title} onUpdate={handleCmsFieldUpdate} elementClass="text-brand-gold uppercase font-semibold text-sm" />
-                ) : (
-                  cmsData.process_step2_title
-                )}
-              </h3>
-              <p className="text-xs text-brand-muted font-light leading-relaxed">
-                {cmsEditable ? (
-                  <CmsEditableText cmsEditable={cmsEditable} field="process_step2_desc" value={cmsData.process_step2_desc} onUpdate={handleCmsFieldUpdate} multiline={true} elementClass="text-brand-muted text-xs leading-relaxed" />
-                ) : (
-                  cmsData.process_step2_desc
-                )}
-              </p>
-            </div>
-
-            {/* Step 3 */}
-            <div className="space-y-4 md:border-r border-brand-ivory/10 pr-4">
-              <h3 className="text-sm font-semibold tracking-widest text-brand-gold uppercase">
-                {cmsEditable ? (
-                  <CmsEditableText cmsEditable={cmsEditable} field="process_step3_title" value={cmsData.process_step3_title} onUpdate={handleCmsFieldUpdate} elementClass="text-brand-gold uppercase font-semibold text-sm" />
-                ) : (
-                  cmsData.process_step3_title
-                )}
-              </h3>
-              <p className="text-xs text-brand-muted font-light leading-relaxed">
-                {cmsEditable ? (
-                  <CmsEditableText cmsEditable={cmsEditable} field="process_step3_desc" value={cmsData.process_step3_desc} onUpdate={handleCmsFieldUpdate} multiline={true} elementClass="text-brand-muted text-xs leading-relaxed" />
-                ) : (
-                  cmsData.process_step3_desc
-                )}
-              </p>
-            </div>
-
-            {/* Step 4 */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold tracking-widest text-brand-gold uppercase">
-                {cmsEditable ? (
-                  <CmsEditableText cmsEditable={cmsEditable} field="process_step4_title" value={cmsData.process_step4_title} onUpdate={handleCmsFieldUpdate} elementClass="text-brand-gold uppercase font-semibold text-sm" />
-                ) : (
-                  cmsData.process_step4_title
-                )}
-              </h3>
-              <p className="text-xs text-brand-muted font-light leading-relaxed">
-                {cmsEditable ? (
-                  <CmsEditableText cmsEditable={cmsEditable} field="process_step4_desc" value={cmsData.process_step4_desc} onUpdate={handleCmsFieldUpdate} multiline={true} elementClass="text-brand-muted text-xs leading-relaxed" />
-                ) : (
-                  cmsData.process_step4_desc
-                )}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-16 text-center">
-            <button
-              onClick={() => setCurrentPage('custom-print')}
-              className="bg-brand-gold text-brand-charcoal hover:bg-brand-gold-light hover:text-black font-sans text-xs font-semibold tracking-[0.2em] px-10 py-5 uppercase transition duration-300 rounded-none flex items-center gap-2 mx-auto cursor-pointer border border-brand-gold"
-              id="workflow-cta"
-            >
-              <Upload size={14} />
-              <span>GỬI THIẾT KẾ VÀ ĐẶT HÀNG NGAY</span>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Customer feedback - Feedback khách hàng */}
-      <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" id="testimonials-section">
-        <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
-          <span className="text-xs tracking-widest text-brand-gold uppercase font-semibold">Phản Hồi Thực Tế</span>
-          <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">
-            {cmsEditable ? (
-              <CmsEditableText
-                cmsEditable={cmsEditable}
-                field="feedback_title"
-                value={cmsData.feedback_title}
-                onUpdate={handleCmsFieldUpdate}
-                elementClass="text-brand-charcoal font-serif text-3xl sm:text-4xl text-center"
-              />
-            ) : (
-              cmsData.feedback_title
-            )}
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-brand-cream/30 p-8 border border-brand-charcoal/5 space-y-4">
-            <p className="text-base font-serif italic text-brand-charcoal">"Hạt mực cực mịn, co giãn dẻo dai."</p>
-            <p className="text-xs text-brand-muted leading-relaxed font-light">
-              "Tôi đặt in áo thun 260GSM phôi thô bên studio PRINTEE cho đợt mở bán bộ sưu tập xuân hè. Nhận hàng thực tế màng PET bám siêu chắc, giặt máy không nứt vỡ hay sần sùi chút nào. Chắc chắn gấn bó lâu dài!"
-            </p>
-            <div className="pt-4 border-t border-brand-charcoal/5">
-              <strong className="text-xs font-semibold text-brand-charcoal uppercase block">Kiên Trần (KienArt)</strong>
-              <span className="text-[10px] text-brand-muted uppercase tracking-wider font-light">Lead Graphic Designer</span>
-            </div>
-          </div>
-
-          <div className="bg-brand-cream/30 p-8 border border-brand-charcoal/5 space-y-4">
-            <p className="text-base font-serif italic text-brand-charcoal">"Phôi áo thun streetwear tốt nhất Việt Nam"</p>
-            <p className="text-xs text-brand-muted leading-relaxed font-light">
-              "Rất hiếm nơi làm cổ áo bo thun thô rib dệt dầy khít 3cm như ở PRINTEE, áo thun không bung xơ nhão sau nhiều lần test. Form boxy chuẩn mực làm nổi bật cả artwork thiết kế."
-            </p>
-            <div className="pt-4 border-t border-brand-charcoal/5">
-              <strong className="text-xs font-semibold text-brand-charcoal uppercase block">Huyền Trang (Z-Studio)</strong>
-              <span className="text-[10px] text-brand-muted uppercase tracking-wider font-light">Founder & Creative Director</span>
-            </div>
-          </div>
-
-          <div className="bg-brand-cream/30 p-8 border border-brand-charcoal/5 space-y-4">
-            <p className="text-base font-serif italic text-brand-charcoal">"Tuyệt vời giải pháp in cho local brand ít vốn"</p>
-            <p className="text-xs text-brand-muted leading-relaxed font-light">
-              "Chính sách cho phép đặt lẻ từ 1 sản phẩm đã giúp thương hiệu thời trang độc lập của tôi quay vòng vốn cực tốt mà không lo tồn kho. Chất lượng in ấn giữ chuẩn studio cao cấp!"
-            </p>
-            <div className="pt-4 border-t border-brand-charcoal/5">
-              <strong className="text-xs font-semibold text-brand-charcoal uppercase block">Minh Hoàng (Aether Club)</strong>
-              <span className="text-[10px] text-brand-muted uppercase tracking-wider font-light">Independent Fashion Designer</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-    </div>
-  );
-}
