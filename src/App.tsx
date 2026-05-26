@@ -26,7 +26,13 @@ export default function App() {
   const [cmsSaving, setCmsSaving] = useState<boolean>(false);
   const [cmsSuccessFlash, setCmsSuccessFlash] = useState<boolean>(false);
 
-  // Fetch Live website CMS content on mount
+  // LOGIC MỚI: Tự động chuyển vào trang Admin nếu gõ tenmien.com/admin
+  useEffect(() => {
+    if (window.location.pathname === '/admin') {
+      setCurrentPage('admin');
+    }
+  }, []);
+
   useEffect(() => {
     async function loadCMS() {
       try {
@@ -39,12 +45,10 @@ export default function App() {
     loadCMS();
   }, []);
 
-  // Sync CMS updates in the UI state
   const handleUpdateCmsData = (updatedCms: WebsiteCMS) => {
     setCmsData(updatedCms);
   };
 
-  // Persist local CMS edits straight back to Supabase database!
   const handleSaveCmsToSupabase = async () => {
     if (!cmsData) return;
     try {
@@ -60,19 +64,19 @@ export default function App() {
     }
   };
 
-  // Logouts
   const handleLogoutCustomer = () => {
     setCustomerUser(null);
     setCurrentPage('account');
   };
 
+  // Logout admin sẽ đẩy về trang chủ và đổi url trên thanh trình duyệt
   const handleLogoutAdmin = () => {
     setAdminUser(null);
     setCmsEditable(false);
-    setCurrentPage('admin');
+    setCurrentPage('home');
+    window.history.pushState({}, '', '/');
   };
 
-  // Setup routing render
   const renderCurrentPage = () => {
     if (!cmsData) {
       return (
@@ -85,47 +89,17 @@ export default function App() {
 
     switch (currentPage) {
       case 'home':
-        return (
-          <Home 
-            setCurrentPage={setCurrentPage} 
-            cmsEditable={cmsEditable}
-            onUpdateCms={handleUpdateCmsData}
-            cmsData={cmsData}
-          />
-        );
+        return <Home setCurrentPage={setCurrentPage} cmsEditable={cmsEditable} onUpdateCms={handleUpdateCmsData} cmsData={cmsData} />;
       case 'catalog':
-        return (
-          <Catalog 
-            setCurrentPage={setCurrentPage} 
-            setSelectedPreloadGarment={setPreloadGarment}
-          />
-        );
+        return <Catalog setCurrentPage={setCurrentPage} setSelectedPreloadGarment={setPreloadGarment} />;
       case 'custom-print':
-        return (
-          <CustomOrderPage 
-            preloadGarment={preloadGarment}
-            setPreloadGarment={setPreloadGarment}
-            setCurrentPage={setCurrentPage}
-            customerUser={customerUser}
-          />
-        );
+        return <CustomOrderPage preloadGarment={preloadGarment} setPreloadGarment={setPreloadGarment} setCurrentPage={setCurrentPage} customerUser={customerUser} />;
       case 'lookbook':
         return <Lookbook />;
       case 'account':
-        return (
-          <CustomerAccount 
-            customerUser={customerUser} 
-            setCustomerUser={setCustomerUser}
-            setCurrentPage={setCurrentPage}
-          />
-        );
+        return <CustomerAccount customerUser={customerUser} setCustomerUser={setCustomerUser} setCurrentPage={setCurrentPage} />;
       case 'admin':
-        return (
-          <AdminDashboard 
-            adminUser={adminUser} 
-            setAdminUser={setAdminUser}
-          />
-        );
+        return <AdminDashboard adminUser={adminUser} setAdminUser={setAdminUser} />;
       default:
         return <Home setCurrentPage={setCurrentPage} cmsEditable={cmsEditable} onUpdateCms={handleUpdateCmsData} cmsData={cmsData} />;
     }
@@ -134,20 +108,16 @@ export default function App() {
   return (
     <div className="bg-brand-ivory text-brand-charcoal min-h-screen flex flex-col justify-between selection:bg-brand-gold/30 selection:text-brand-charcoal">
       
-      {/* Header element */}
-      <Header 
-        currentPage={currentPage}
-        setCurrentPage={setCurrentPage}
-        isAdmin={!!adminUser}
-        cmsEditable={cmsEditable}
-        setCmsEditable={setCmsEditable}
-        customerUser={customerUser}
-        adminUser={adminUser}
-        logoutCustomer={handleLogoutCustomer}
-        logoutAdmin={handleLogoutAdmin}
-      />
+      {/* ẨN HEADER KHI ĐANG Ở TRANG ADMIN ĐỂ TRÔNG CHUYÊN NGHIỆP HƠN */}
+      {currentPage !== 'admin' && (
+        <Header 
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          customerUser={customerUser}
+          logoutCustomer={handleLogoutCustomer}
+        />
+      )}
 
-      {/* Main viewport with transition wrapper */}
       <main className="flex-grow">
         <AnimatePresence mode="wait">
           <motion.div
@@ -162,21 +132,18 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      {/* Visual CMS Floating Controller Ribbon */}
-      {cmsEditable && adminUser && (
+      {/* Floating Controller Ribbon cho Admin */}
+      {cmsEditable && adminUser && currentPage !== 'admin' && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 bg-brand-charcoal border border-brand-gold text-brand-ivory p-3 px-6 shadow-2xl flex items-center gap-4 rounded-full animate-slideUp">
           <div className="flex items-center gap-1.5 text-xs text-brand-gold font-bold">
             <Sparkles size={14} className="animate-pulse" />
             <span className="tracking-wider">CMS ĐANG TRỰC TIẾP CHỈNH SỬA</span>
           </div>
-
           <div className="h-4 w-[1px] bg-brand-ivory/20" />
-
           <button
             onClick={handleSaveCmsToSupabase}
             disabled={cmsSaving}
             className="bg-brand-gold text-brand-charcoal hover:bg-brand-gold-light text-[11px] font-bold py-1.5 px-4 rounded-full transition flex items-center gap-1 cursor-pointer disabled:opacity-50 uppercase tracking-widest"
-            id="cms-save-supabase-btn"
           >
             {cmsSaving ? (
               <div className="w-3.5 h-3.5 border-2 border-brand-charcoal border-t-transparent rounded-full animate-spin" />
@@ -185,13 +152,13 @@ export default function App() {
             ) : (
               <Save size={12} />
             )}
-            <span>{cmsSuccessFlash ? 'ĐÃ LƯU SUPABASE OK!' : 'Lưu text lên Supabase'}</span>
+            <span>{cmsSuccessFlash ? 'ĐÃ LƯU BẢN CẬP NHẬT!' : 'Lưu lại giao diện'}</span>
           </button>
         </div>
       )}
 
-      {/* Footer element */}
-      <Footer setCurrentPage={setCurrentPage} />
+      {/* ẨN FOOTER KHI ĐANG Ở TRANG ADMIN */}
+      {currentPage !== 'admin' && <Footer setCurrentPage={setCurrentPage} />}
       
     </div>
   );
