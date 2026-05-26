@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { dbSim } from '../supabaseClient';
 import { Product, Category } from '../types';
-import { Search, SlidersHorizontal, Info, Shirt, ArrowUpRight, ArrowLeftRight, Check, CheckCircle2 } from 'lucide-react';
+import { Search, Info, Shirt, ArrowUpRight, Check, CheckCircle2, ShoppingCart } from 'lucide-react';
 
 interface CatalogProps {
   setCurrentPage: (page: string) => void;
@@ -16,6 +16,9 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
   const [sortBy, setSortBy] = useState<string>('featured');
   const [loading, setLoading] = useState<boolean>(true);
   
+  // Toast thông báo
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
   // Selected product detail modal
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [chosenColor, setChosenColor] = useState<string>('');
@@ -40,6 +43,11 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
     loadData();
   }, []);
 
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   // Filter & Sort math
   const filteredProducts = products.filter(p => {
     const matchesCategory = selectedCategory === 'all' || p.category_id === selectedCategory;
@@ -57,6 +65,7 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
     return cat ? cat.name : 'Unknown';
   };
 
+  // Nút 1: Chuyển sang luồng In theo yêu cầu
   const handleCreateCustomOrderSim = (product: Product) => {
     setSelectedPreloadGarment({
       type: `${product.name} (Phôi ${getCategoryName(product.category_id)})`,
@@ -67,8 +76,25 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
     setCurrentPage('custom-print');
   };
 
+  // Nút 2: Luồng mua áo trơn
+  const handleBuyBlankGarment = (product: Product) => {
+    // Hiện tại hệ thống chưa có trang Giỏ hàng (Cart), nên ta mô phỏng bằng thông báo Toast
+    showToast(`Đã thêm ${product.name} (Size: ${chosenSize}) vào giỏ hàng!`);
+    setTimeout(() => {
+      setSelectedProduct(null); // Tự động đóng modal sau khi thêm
+    }, 1500);
+  };
+
   return (
-    <div className="py-12 bg-brand-ivory animate-fadeIn">
+    <div className="py-12 bg-brand-ivory animate-fadeIn relative">
+      
+      {/* Toast Component */}
+      {toast && (
+        <div className={`fixed top-24 right-8 z-50 px-6 py-3 rounded shadow-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 animate-fadeIn ${toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-brand-gold text-brand-charcoal'}`}>
+          <CheckCircle2 size={14} /> {toast.message}
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Page Editorial Header */}
@@ -91,7 +117,6 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
                   ? 'bg-brand-charcoal text-white' 
                   : 'bg-brand-cream hover:bg-brand-gold/10 text-brand-charcoal'
               }`}
-              id="cat-tab-all"
             >
               TẤT CẢ PHÔI
             </button>
@@ -104,7 +129,6 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
                     ? 'bg-brand-charcoal text-white' 
                     : 'bg-brand-cream hover:bg-brand-gold/10 text-brand-charcoal'
                 }`}
-                id={`cat-tab-${cat.slug}`}
               >
                 {cat.name}
               </button>
@@ -123,7 +147,6 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="px-3 py-2.5 text-xs bg-transparent border-none text-brand-charcoal focus:ring-0 focus:outline-none w-full sm:w-48 rounded-none"
-                id="catalog-search-input"
               />
             </div>
 
@@ -133,7 +156,6 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
                 className="px-3 py-2.5 text-xs bg-transparent border-none text-brand-charcoal font-semibold focus:ring-0 focus:outline-none cursor-pointer rounded-none"
-                id="catalog-sort-select"
               >
                 <option value="featured">NỔI BẬT</option>
                 <option value="price-asc">GIÁ: THẤP ĐẾN CAO</option>
@@ -161,15 +183,21 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
             {filteredProducts.map((p) => (
               <div 
                 key={p.id} 
-                className="group bg-brand-cream/30 border border-brand-charcoal/5 rounded-sm hover:border-brand-gold/50 transition duration-300 flex flex-col justify-between"
+                className="group bg-brand-cream/30 border border-brand-charcoal/5 rounded-sm hover:border-brand-gold/50 transition duration-300 flex flex-col justify-between relative"
               >
-                {/* Product preview graphic with high aesthetics */}
+                {/* Sale Tag */}
+                {p.original_price && p.original_price > p.price && (
+                  <div className="absolute top-4 right-4 bg-red-600 text-white text-[10px] font-bold tracking-widest uppercase px-2 py-1 z-20 rounded-none shadow">
+                    SALE
+                  </div>
+                )}
+                {/* Product preview */}
                 <div 
                   className="aspect-[4/5] bg-brand-cream overflow-hidden cursor-pointer relative"
                   onClick={() => {
                     setSelectedProduct(p);
                     setChosenColor(p.colors[0] || '#111111');
-                    setChosenSize('XL');
+                    setChosenSize(p.sizes[0] || 'XL');
                   }}
                 >
                   <img 
@@ -178,12 +206,10 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
                     className="w-full h-full object-cover grayscale-10 group-hover:grayscale-0 transition duration-700 transform group-hover:scale-102"
                     referrerPolicy="no-referrer"
                   />
-                  {/* Category Pill Tag */}
                   <div className="absolute top-4 left-4 bg-brand-ivory/95 border border-brand-charcoal/10 text-brand-charcoal text-[9px] font-bold tracking-widest uppercase px-2.5 py-1 z-10 rounded-none">
                     {getCategoryName(p.category_id)}
                   </div>
                   
-                  {/* Overlay for hovering selection */}
                   <div className="absolute inset-0 bg-brand-charcoal/30 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
                     <span className="bg-brand-ivory text-brand-charcoal px-4 py-2.5 text-[10px] font-semibold tracking-widest uppercase flex items-center gap-1">
                       Chi tiết phôi áo <ArrowUpRight size={14} />
@@ -198,7 +224,7 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
                       onClick={() => {
                         setSelectedProduct(p);
                         setChosenColor(p.colors[0] || '#111111');
-                        setChosenSize('XL');
+                        setChosenSize(p.sizes[0] || 'XL');
                       }}
                     >
                       {p.name}
@@ -208,12 +234,12 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
 
                   <div className="flex justify-between items-end pt-3 border-t border-brand-charcoal/5">
                     <div>
-                      {p.original_price && (
+                      {p.original_price && p.original_price > p.price && (
                         <p className="text-[10px] text-brand-muted line-through font-light">{p.original_price.toLocaleString('vi-VN')} đ</p>
                       )}
                       <p className="text-sm font-sans font-semibold text-brand-gold">{p.price.toLocaleString('vi-VN')} vnđ</p>
                     </div>
-                    {/* Tiny colors dots display */}
+                    {/* Colors dots */}
                     <div className="flex gap-1">
                       {p.colors.slice(0, 4).map((c, idx) => (
                         <span 
@@ -234,22 +260,20 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
           </div>
         )}
 
-        {/* Gorgeous Drawer/Modal for selected product details */}
+        {/* Modal Chi tiết sản phẩm (Đã thêm cơ chế 2 Nút) */}
         {selectedProduct && (
-          <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-charcoal/75 backdrop-blur-sm flex justify-center items-center p-4 animate-fadeIn" id="product-detail-modal">
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-charcoal/75 backdrop-blur-sm flex justify-center items-center p-4 animate-fadeIn">
             <div className="bg-brand-ivory w-full max-w-4xl border border-brand-charcoal rounded overflow-hidden shadow-2xl relative grid grid-cols-1 md:grid-cols-2">
               
-              {/* Close Button absolute */}
               <button 
                 onClick={() => setSelectedProduct(null)}
-                className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-brand-charcoal text-brand-ivory flex items-center justify-center hover:bg-brand-gold transition duration-200"
-                id="close-detail-modal"
+                className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-brand-charcoal text-brand-ivory flex items-center justify-center hover:bg-brand-gold transition duration-200 shadow"
               >
                 ✕
               </button>
 
               {/* Slider image left */}
-              <div className="aspect-[4/5] bg-brand-cream relative">
+              <div className="aspect-[4/5] md:aspect-auto bg-brand-cream relative">
                 <img 
                   src={selectedProduct.images[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=800'} 
                   alt={selectedProduct.name}
@@ -258,8 +282,8 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
                 />
               </div>
 
-              {/* Product specifications content */}
-              <div className="p-8 flex flex-col justify-between bg-brand-ivory overflow-y-auto max-h-[500px] md:max-h-[600px] gap-6">
+              {/* Nội dung bên phải */}
+              <div className="p-8 flex flex-col justify-between bg-brand-ivory overflow-y-auto max-h-[70vh] md:max-h-[85vh] gap-6">
                 <div className="space-y-4">
                   <div className="flex justify-between items-start">
                     <div>
@@ -272,27 +296,18 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
 
                   <p className="text-xs text-brand-muted leading-relaxed font-light whitespace-pre-line">{selectedProduct.description}</p>
                   
-                  {/* Textile specs tag list */}
                   <div className="grid grid-cols-2 gap-4 pt-3 pb-3 border-t border-b border-brand-charcoal/10 text-xs">
                     <div>
                       <span className="text-brand-muted block font-light">Vải dệt:</span>
-                      <strong className="text-brand-charcoal font-semibold">100% Cotton Organic</strong>
+                      <strong className="text-brand-charcoal font-semibold">100% Cotton Premium</strong>
                     </div>
                     <div>
-                      <span className="text-brand-muted block font-light">Định lượng:</span>
-                      <strong className="text-brand-charcoal font-semibold">240 - 260 GSM</strong>
-                    </div>
-                    <div>
-                      <span className="text-brand-muted block font-light">Độ co giãn:</span>
-                      <strong className="text-brand-charcoal font-semibold">Bo thun rib đàn hồi 4 chiều</strong>
-                    </div>
-                    <div>
-                      <span className="text-brand-muted block font-light">Phù hợp in:</span>
-                      <strong className="text-brand-charcoal font-semibold">PET DTF cao cấp & in DTG</strong>
+                      <span className="text-brand-muted block font-light">Kiểu dáng:</span>
+                      <strong className="text-brand-charcoal font-semibold">Oversized / Boxy</strong>
                     </div>
                   </div>
 
-                  {/* Colors pick */}
+                  {/* Chọn Màu */}
                   <div className="space-y-2">
                     <span className="text-xs tracking-wider text-brand-charcoal font-semibold">CHỌN MÀU PHÔI ÁO:</span>
                     <div className="flex flex-wrap gap-2">
@@ -307,7 +322,7 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
                           title={color}
                         >
                           {chosenColor === color && (
-                            <span className="absolute inset-0 flex items-center justify-center text-brand-gold text-white drop-shadow-md">
+                            <span className="absolute inset-0 flex items-center justify-center text-brand-gold drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
                               <Check size={14} className="stroke-[3]" />
                             </span>
                           )}
@@ -316,10 +331,10 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
                     </div>
                   </div>
 
-                  {/* Sizes pick */}
+                  {/* Chọn Size */}
                   <div className="space-y-2 pt-1">
                     <div className="flex justify-between items-center text-xs text-brand-charcoal font-semibold">
-                      <span>CHỌN SIZE ÁO (CHUẨN CHÂU ÂU):</span>
+                      <span>CHỌN SIZE ÁO:</span>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {selectedProduct.sizes.map((size) => (
@@ -339,21 +354,39 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
                   </div>
                 </div>
 
+                {/* VÙNG NÚT BẤM KÉP (DUAL BUTTONS) */}
                 <div className="pt-4 border-t border-brand-charcoal/10">
                   <div className="flex justify-between items-center mb-4">
-                    <span className="text-xs text-brand-muted">Đơn giá phôi thô:</span>
-                    <strong className="text-xl font-sans font-bold text-brand-gold">
-                      {selectedProduct.price.toLocaleString('vi-VN')} đ
-                    </strong>
+                    <span className="text-xs text-brand-muted font-bold">ĐƠN GIÁ:</span>
+                    <div className="text-right">
+                       {selectedProduct.original_price && selectedProduct.original_price > selectedProduct.price && (
+                         <span className="text-xs text-brand-muted line-through mr-2 font-light">{selectedProduct.original_price.toLocaleString('vi-VN')} đ</span>
+                       )}
+                       <strong className="text-2xl font-sans font-bold text-brand-gold">
+                         {selectedProduct.price.toLocaleString('vi-VN')} đ
+                       </strong>
+                    </div>
                   </div>
 
-                  <button
-                    onClick={() => handleCreateCustomOrderSim(selectedProduct)}
-                    className="w-full bg-brand-gold hover:bg-brand-gold-light text-brand-charcoal py-4.5 text-xs font-semibold tracking-widest uppercase transition rounded-none cursor-pointer border border-brand-gold flex items-center justify-center gap-2"
-                  >
-                    <span>TIẾP TỤC THIẾT KẾ & ĐẶT IN</span>
-                    <ArrowForwardSim />
-                  </button>
+                  <div className="flex flex-col gap-3">
+                    {/* Nút 1: Mua áo trơn */}
+                    <button
+                      onClick={() => handleBuyBlankGarment(selectedProduct)}
+                      className="w-full bg-brand-charcoal text-white hover:bg-black py-4 text-xs font-bold tracking-widest uppercase transition rounded-none cursor-pointer flex items-center justify-center gap-2 shadow-md"
+                    >
+                      <ShoppingCart size={15} />
+                      <span>CHỌN MUA PHÔI TRƠN</span>
+                    </button>
+
+                    {/* Nút 2: In theo yêu cầu */}
+                    <button
+                      onClick={() => handleCreateCustomOrderSim(selectedProduct)}
+                      className="w-full bg-brand-gold text-brand-charcoal hover:bg-yellow-500 py-4 text-xs font-bold tracking-widest uppercase transition rounded-none cursor-pointer flex items-center justify-center gap-2 shadow-md"
+                    >
+                      <ArrowForwardSim />
+                      <span>THÊM THIẾT KẾ IN CỦA BẠN</span>
+                    </button>
+                  </div>
                 </div>
 
               </div>
@@ -366,11 +399,11 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
   );
 }
 
-// Micro icon drawing helper
+// Icon helper
 function ArrowForwardSim() {
   return (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
     </svg>
   );
 }
