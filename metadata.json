@@ -1,0 +1,6 @@
+{
+  "name": "PRINTEE",
+  "description": "High-end custom apparel printing studio. Luxury Streetwear style with visual CMS.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

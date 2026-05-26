@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Helvetica Neue", Arial, "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Georgia", "Cormorant Garamond", serif;
+  --font-display: "Helvetica Neue", Arial, sans-serif;
+
+  --color-brand-ivory: #FAF9F6;
+  --color-brand-charcoal: #141414;
+  --color-brand-gold: #A89060;
+  --color-brand-gold-light: #E5D5B7;
+  --color-brand-cream: #F5F4EF;
+  --color-brand-muted: #7E7C77;
+  --color-brand-dark-grey: #141414;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-brand-ivory);
+    color: var(--color-brand-charcoal);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Editorial style titles */
+  h1, h2, h3, .serif-font {
+    font-family: var(--font-serif);
+  }
+
+  .display-font {
+    font-family: var(--font-display);
+  }
+}
+
+/* Theme Utilities for Clean Minimalism */
+.editorial-line {
+  height: 1px;
+  background: rgba(20, 20, 20, 0.08);
+  width: 100%;
+}
+
+.btn-luxury {
+  border: 1px solid var(--color-brand-charcoal);
+  padding: 12px 32px;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  transition: all 0.3s ease;
+  display: inline-block;
+  cursor: pointer;
+  text-align: center;
+  font-weight: 600;
+  background: transparent;
+  color: var(--color-brand-charcoal);
+}
+
+.btn-luxury:hover {
+  background: var(--color-brand-charcoal);
+  color: var(--color-brand-ivory);
+}
+
+/* Custom premium scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-brand-ivory);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-brand-gold);
+  border-radius: 0px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand-charcoal);
+}
+
