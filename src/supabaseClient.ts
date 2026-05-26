@@ -39,37 +39,18 @@ export const dbSim = {
     async save(item: Product) { await supabase.from('products').upsert(item); },
     async delete(id: string) { await supabase.from('products').delete().eq('id', id); }
   },
-  albums: {
-    async list(): Promise<LookbookAlbum[]> {
-      const { data } = await supabase.from('albums').select('*').order('created_at', { ascending: false });
-      return data || [];
-    },
-    async save(item: LookbookAlbum) { await supabase.from('albums').upsert(item); },
-    async delete(id: string) { await supabase.from('albums').delete().eq('id', id); },
-    async imagesForAlbum(albumId: string): Promise<AlbumImage[]> {
-      const { data } = await supabase.from('album_images').select('*').eq('album_id', albumId).order('sort_order', { ascending: true });
-      return data || [];
-    },
-    async addImage(img: AlbumImage) { await supabase.from('album_images').upsert(img); },
-    async deleteImage(id: string) { await supabase.from('album_images').delete().eq('id', id); }
-  },
   customOrders: {
     async list(): Promise<CustomOrder[]> {
       const { data } = await supabase.from('custom_orders').select('*').order('created_at', { ascending: false });
       return data || [];
     },
     async save(item: CustomOrder) { await supabase.from('custom_orders').upsert(item); },
+    // Đã bổ sung hàm xóa đơn hàng dưới đây:
+    async delete(id: string) { await supabase.from('custom_orders').delete().eq('id', id); },
     async getByEmail(email: string): Promise<CustomOrder[]> {
       const { data } = await supabase.from('custom_orders').select('*').ilike('customer_email', email);
       return data || [];
     }
-  },
-  customers: {
-    async list(): Promise<Customer[]> {
-      const { data } = await supabase.from('customers').select('*');
-      return data || [];
-    },
-    async save(item: Customer) { await supabase.from('customers').upsert(item); }
   },
   admins: {
     async list(): Promise<AdminUser[]> {
@@ -81,27 +62,12 @@ export const dbSim = {
       return data;
     }
   },
-  cms: {
-    async get(): Promise<WebsiteCMS> {
-      const { data } = await supabase.from('web_cms').select('*').eq('id', 'current').maybeSingle();
-      return data as WebsiteCMS;
-    },
-    async update(cms: WebsiteCMS) { await supabase.from('web_cms').upsert({ id: 'current', ...cms }); }
-  },
   settings: {
     async get(): Promise<SiteSettings> {
       const { data } = await supabase.from('site_settings').select('*').eq('id', 'current').maybeSingle();
       return data as SiteSettings;
     },
     async update(settings: Partial<SiteSettings>) { await supabase.from('site_settings').upsert({ id: 'current', ...settings }); }
-  },
-  mediaLibrary: {
-    async list(): Promise<MediaFile[]> {
-      const { data } = await supabase.from('media_library').select('*').order('created_at', { ascending: false });
-      return data || [];
-    },
-    async save(item: MediaFile) { await supabase.from('media_library').upsert(item); },
-    async delete(id: string) { await supabase.from('media_library').delete().eq('id', id); }
   }
 };
 
