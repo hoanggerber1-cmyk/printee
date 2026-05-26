@@ -1,7 +1,10 @@
 import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import { dbSim, uploadToStorage } from '../supabaseClient';
 import { Banner, Category, Product, CustomOrder, AdminUser, SiteSettings } from '../types';
-import { Plus, Tag, ShoppingBag, Image, Folder, RefreshCw, Upload, Settings, Percent, Trash2, Edit3, X } from 'lucide-react';
+import { 
+  Plus, Edit3, Trash2, Tag, ShoppingBag, Image, Folder, RefreshCw, 
+  Upload, CheckCircle, Settings, Percent
+} from 'lucide-react';
 
 interface AdminDashboardProps {
   adminUser: AdminUser | null;
@@ -10,138 +13,481 @@ interface AdminDashboardProps {
 
 type AdminTab = 'settings' | 'products' | 'categories' | 'banners' | 'orders';
 
+const DEFAULT_SITE_SETTINGS: SiteSettings = {
+  id: 'current', site_name: 'PRINTEE', site_slogan: 'Premium Design Built for Luxury Streetwear',
+  hotline: '0987.654.321', zalo: '0987.654.321', support_email: 'contact@printee.com',
+  address: 'TP. Hồ Chí Minh', facebook_url: '', tiktok_url: '', instagram_url: '', youtube_url: '', shopee_url: '', website_url: '', google_maps_url: '',
+  company_description: 'Studio in ấn chuyên nghiệp.', footer_quality_title: 'Chất Lượng Studio',
+  footer_quality_text_1: 'Định lượng thun 240-260GSM.', footer_quality_text_2: 'In PET DTF siêu nét.', footer_quality_text_3: 'Nhận in từ 1 chiếc.',
+  footer_quicklinks_title: 'Liên Kết Nhanh', newsletter_title: 'Bản Tin Studio', newsletter_text: 'Nhận khuyến mãi mới nhất.',
+  copyright_text: 'PRINTEE Studio', topbar_text: '🔥 FREESHIP CHO MỌI ĐƠN HÀNG TỪ 500K', logo_url: '', favicon_url: ''
+};
+
 export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboardProps) {
-  // Các state cũ đã quen thuộc
-  const [email, setEmail] = useState('hoanggerber@gmail.com');
+  const [email, setEmail] = useState('hoanggerber@gmail.com'); 
   const [password, setPassword] = useState('');
-  const [activeTab, setActiveTab] = useState<AdminTab>('orders');
-  const [loading, setLoading] = useState(true);
-  
+  const [err, setErr] = useState('');
+
   const [banners, setBanners] = useState<Banner[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<CustomOrder[]>([]);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SITE_SETTINGS);
   
-  const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
-  const [tempColor, setTempColor] = useState('#000000'); // Màu tạm thời để chọn
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<AdminTab>('orders');
+  
+  const [orderFilter, setOrderFilter] = useState<'all' | 'custom' | 'blank'>('all');
+  const [productFilter, setProductFilter] = useState<'all' | 'active' | 'draft' | 'deleted'>('all');
 
-  useEffect(() => { if (adminUser) loadAdminData(); }, [adminUser]);
+  const [editingBanner, setEditingBanner] = useState<Partial<Banner> | null>(null);
+  const [editingCategory, setEditingCategory] = useState<Partial<Category> | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
+  const [editingOrder, setEditingOrder] = useState<Partial<CustomOrder> | null>(null);
+  
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
+
+  useEffect(() => {
+    if (adminUser) loadAdminData();
+  }, [adminUser]);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   async function loadAdminData() {
-    setLoading(true);
-    const [b, c, p, o] = await Promise.all([
-      dbSim.banners.list().catch(() => []),
-      dbSim.categories.list().catch(() => []),
-      dbSim.products.list().catch(() => []),
-      dbSim.customOrders.list().catch(() => [])
-    ]);
-    setBanners(b); setCategories(c); setProducts(p); setOrders(o);
-    setLoading(false);
+    try {
+      setLoading(true);
+      const [b, c, p, o, s] = await Promise.all([
+        dbSim.banners.list().catch(() => []),
+        dbSim.categories.list().catch(() => []),
+        dbSim.products.list().catch(() => []),
+        dbSim.customOrders.list().catch(() => []),
+        dbSim.settings.get().catch(() => null)
+      ]);
+      setBanners(b); setCategories(c); setProducts(p); setOrders(o);
+      if (s && s.site_name) setSiteSettings(s); else setSiteSettings(DEFAULT_SITE_SETTINGS);
+    } catch (e: any) {
+      showToast(`Lỗi đồng bộ dữ liệu hệ thống.`, 'error');
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const handleSaveProduct = async (e: FormEvent) => {
+  // --- HÀM XÁC THỰC BẢO MẬT MỚI NHẤT (CÓ CHECK PASSWORD) ---
+  const handleAdminLogin = async (e: FormEvent) => {
     e.preventDefault();
-    if (!editingProduct) return;
-    await dbSim.products.save(editingProduct as Product);
-    setEditingProduct(null); 
-    loadAdminData();
-    alert('Đã lưu sản phẩm thành công!');
+    setErr(''); // Xóa lỗi cũ
+    try {
+      const match = await dbSim.admins.getByEmail(email) as any;
+      if (match) {
+        // KIỂM TRA MẬT KHẨU
+        if (match.password === password) {
+          setAdminUser(match); 
+          showToast(`Đăng nhập thành công!`);
+        } else {
+          setErr('Mật khẩu không chính xác. Vui lòng nhập lại!');
+        }
+      } else {
+        setErr('Tài khoản không tồn tại trong hệ thống admin.');
+      }
+    } catch (error) {
+      setErr('Lỗi máy chủ khi xác thực.');
+    }
+  };
+
+  // UPLOADS
+  const handleSingleImageUpload = async (e: ChangeEvent<HTMLInputElement>, bucket: any, callback: (url: string) => void) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploadLoading(true); showToast('Đang tải ảnh lên máy chủ...');
+      const url = await uploadToStorage(bucket, file);
+      callback(url); showToast('Tải ảnh thành công!');
+    } catch (err: any) { showToast(`Lỗi: ${err.message}`, 'error'); } finally { setUploadLoading(false); }
   };
 
   const handleMultipleImagesUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files) return;
-    const urls = await Promise.all(Array.from(files).map(f => uploadToStorage('products', f)));
-    setEditingProduct(prev => ({ ...prev, images: [...(prev?.images || []), ...urls] }));
+    if (!files || files.length === 0) return;
+    try {
+      setUploadLoading(true); showToast(`Đang tải lên ${files.length} ảnh...`);
+      const uploadedUrls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const url = await uploadToStorage('products', files[i]);
+        uploadedUrls.push(url);
+      }
+      setEditingProduct(prev => ({ ...prev, images: [...(prev?.images || []), ...uploadedUrls] }));
+      showToast('Đồng bộ ảnh hoàn tất!');
+    } catch (err: any) { showToast(`Lỗi: ${err.message}`, 'error'); } finally { setUploadLoading(false); }
+  };
+
+  // CRUD SẢN PHẨM, DANH MỤC, BANNER
+  const handleSaveProduct = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct?.name || !editingProduct?.price) return showToast('Cần điền Tên và Giá!', 'error');
+    const full: Product = {
+      id: editingProduct.id || `prod-${Date.now()}`, name: editingProduct.name, description: editingProduct.description || '',
+      category_id: editingProduct.category_id || categories[0]?.id || '', price: Number(editingProduct.price),
+      original_price: editingProduct.original_price ? Number(editingProduct.original_price) : undefined,
+      colors: editingProduct.colors || [], sizes: editingProduct.sizes || [], images: editingProduct.images || [],
+      status: editingProduct.status as any || 'active', inventory: Number(editingProduct.inventory) || 0,
+      is_featured: !!editingProduct.is_featured, is_deleted: !!editingProduct.is_deleted, created_at: editingProduct.created_at || new Date().toISOString()
+    };
+    await dbSim.products.save(full); showToast('Lưu sản phẩm thành công!'); setEditingProduct(null); loadAdminData();
+  };
+
+  const handleSaveCategory = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingCategory?.name) return;
+    const full: Category = {
+      id: editingCategory.id || `cat-${Date.now()}`, name: editingCategory.name, slug: editingCategory.slug || editingCategory.name.toLowerCase().replace(/\s+/g, '-'),
+      description: editingCategory.description || '', image_url: editingCategory.image_url || '',
+      sort_order: Number(editingCategory.sort_order) || 1, active: editingCategory.active ?? true
+    };
+    await dbSim.categories.save(full); showToast('Lưu danh mục thành công!'); setEditingCategory(null); loadAdminData();
+  };
+
+  const handleSaveBanner = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingBanner?.title || !editingBanner?.image_url) return;
+    const full: Banner = {
+      id: editingBanner.id || `banner-${Date.now()}`, title: editingBanner.title, subtitle: editingBanner.subtitle || '',
+      image_url: editingBanner.image_url, button_text: editingBanner.button_text || 'Xem ngay', link_url: editingBanner.link_url || 'catalog',
+      active: editingBanner.active ?? true, sort_order: Number(editingBanner.sort_order) || 1, created_at: editingBanner.created_at || new Date().toISOString()
+    };
+    await dbSim.banners.save(full); showToast('Lưu banner thành công!'); setEditingBanner(null); loadAdminData();
+  };
+
+  const handleDelete = async (type: string, id: string) => {
+    if (confirm('Xóa dữ liệu này vĩnh viễn?')) {
+      if (type === 'cat') await dbSim.categories.delete(id);
+      if (type === 'prod') await dbSim.products.delete(id);
+      if (type === 'banner') await dbSim.banners.delete(id);
+      showToast('Đã xóa dữ liệu.'); loadAdminData();
+    }
+  };
+
+  const handleSaveSettings = async (e: FormEvent) => {
+    e.preventDefault();
+    await dbSim.settings.update(siteSettings);
+    showToast('Cập nhật diện mạo website thành công!'); loadAdminData();
+  };
+
+  // QUẢN LÝ ĐƠN HÀNG
+  const isBlankOrder = (o: CustomOrder) => o.customer_email === 'khachvanglai@printee.com' || o.design_file_name?.includes('Mua phôi trơn');
+  
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: CustomOrder['status']) => {
+    const ord = orders.find(o => o.id === orderId);
+    if (!ord) return;
+    try {
+      await dbSim.customOrders.save({ ...ord, status: newStatus }); 
+      showToast(`Cập nhật trạng thái đơn thành công.`); loadAdminData();
+    } catch (e: any) { showToast(`Lỗi: ${e?.message}`, 'error'); }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    if (confirm('⚠️ BẠN CÓ CHẮC CHẮN MUỐN XÓA ĐƠN HÀNG NÀY? Thao tác này không thể hoàn tác!')) {
+      try {
+        await dbSim.customOrders.delete(orderId);
+        showToast('Đã xóa đơn hàng vĩnh viễn!'); loadAdminData();
+      } catch (e: any) { showToast(`Lỗi xóa: ${e.message}`, 'error'); }
+    }
+  };
+
+  const handleSaveEditedOrder = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingOrder?.id) return;
+    try {
+      await dbSim.customOrders.save(editingOrder as CustomOrder);
+      showToast('Đã cập nhật thông tin đơn hàng thành công!');
+      setEditingOrder(null);
+      loadAdminData();
+    } catch (err: any) { showToast(`Lỗi: ${err.message}`, 'error'); }
   };
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen text-sm">
-      {!adminUser ? (
-        // ... (Phần đăng nhập giữ nguyên)
-        <div className="max-w-sm mx-auto bg-white p-8 rounded shadow">
-          <h2 className="text-xl font-bold mb-4">ĐĂNG NHẬP ADMIN</h2>
-          <input className="w-full border p-2 mb-2" placeholder="Email" onChange={e => setEmail(e.target.value)} />
-          <input className="w-full border p-2 mb-4" type="password" placeholder="Mật khẩu" onChange={e => setPassword(e.target.value)} />
-          <button onClick={async() => { const u = await dbSim.admins.getByEmail(email); if(u && u.password === password) setAdminUser(u); else alert('Sai thông tin!'); }} className="w-full bg-black text-white py-2">Đăng nhập</button>
+    <div className="py-12 bg-brand-ivory min-h-screen text-brand-charcoal font-sans text-left">
+      {toast && (
+        <div className={`fixed top-24 right-8 z-50 px-6 py-3 rounded shadow-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 ${toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-brand-gold text-brand-charcoal'}`}>
+          <CheckCircle size={14} /> {toast.message}
         </div>
-      ) : (
-        <div>
-          <div className="flex gap-6 mb-8 border-b pb-4">
-             {(['orders', 'products', 'categories', 'banners', 'settings'] as AdminTab[]).map(t => (
-              <button key={t} onClick={() => setActiveTab(t)} className={`uppercase font-bold ${activeTab === t ? 'text-blue-600' : 'text-gray-500'}`}>{t}</button>
-            ))}
+      )}
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {!adminUser ? (
+          <div className="max-w-md mx-auto bg-brand-dark-grey text-brand-ivory p-8 rounded shadow-2xl space-y-6">
+            <h2 className="text-2xl font-serif text-center tracking-widest text-white">PRINTEE ADMIN</h2>
+            {err && <div className="p-2 bg-red-900 text-white text-xs text-center rounded">{err}</div>}
+            <form onSubmit={handleAdminLogin} className="space-y-4 text-xs">
+              <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-brand-charcoal border border-brand-ivory/10 p-3 text-white rounded outline-none" placeholder="Email admin..."/>
+              <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-brand-charcoal border border-brand-ivory/10 p-3 text-white rounded outline-none" placeholder="Mật khẩu (ví dụ: admin123)"/>
+              <button type="submit" className="w-full bg-brand-gold text-brand-charcoal py-3 font-bold uppercase tracking-widest rounded hover:bg-yellow-500 transition">Xác Thực Hệ Thống</button>
+            </form>
           </div>
-
-          {/* TAB SẢN PHẨM */}
-          {activeTab === 'products' && (
-            <div>
-              <button onClick={() => setEditingProduct({ images: [], colors: [], sizes: [] })} className="bg-blue-600 text-white px-4 py-2 mb-4">+ Thêm sản phẩm</button>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {products.map(p => (
-                  <div key={p.id} className="bg-white p-4 shadow rounded border">
-                    <img src={p.images?.[0]} className="h-40 w-full object-cover mb-2" />
-                    <h3 className="font-bold">{p.name}</h3>
-                    <p className="text-gray-500">{p.price?.toLocaleString()} đ</p>
-                    <button onClick={() => setEditingProduct(p)} className="text-blue-500 font-bold mt-2">Sửa thông tin</button>
-                  </div>
-                ))}
+        ) : (
+          <div className="space-y-8">
+            <div className="flex justify-between items-center border-b pb-4">
+              <div>
+                <h1 className="text-3xl font-serif text-brand-charcoal">HỆ THỐNG QUẢN TRỊ VIÊN</h1>
+                <p className="text-xs text-brand-muted mt-0.5">Tài khoản: <span className="text-brand-charcoal font-medium">{adminUser.full_name}</span></p>
               </div>
+              <button onClick={loadAdminData} className="px-4 py-2 bg-white border rounded text-xs font-medium flex items-center gap-1.5 hover:bg-gray-50">
+                <RefreshCw size={12} className={uploadLoading ? 'animate-spin' : ''}/> Làm mới dữ liệu
+              </button>
             </div>
-          )}
 
-          {/* FORM CHI TIẾT SẢN PHẨM ĐẦY ĐỦ (DÙNG ĐỂ CHỌN DANH MỤC & MÀU) */}
-          {editingProduct && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-              <form onSubmit={handleSaveProduct} className="bg-white p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded shadow-xl">
-                <div className="flex justify-between items-center mb-6 border-b pb-4">
-                  <h2 className="text-lg font-bold">SOẠN THẢO SẢN PHẨM</h2>
-                  <button type="button" onClick={() => setEditingProduct(null)}><X /></button>
-                </div>
+            <div className="flex flex-wrap border-b gap-2 pb-1">
+              {[
+                { id: 'orders', label: 'Đơn Đặt In', icon: ShoppingBag, length: orders.length },
+                { id: 'settings', label: 'Cài đặt Website', icon: Settings, length: 0 },
+                { id: 'products', label: 'Kho Phôi Áo', icon: Tag, length: products.length },
+                { id: 'categories', label: 'Danh mục', icon: Folder, length: categories.length },
+                { id: 'banners', label: 'Banner Trang Chủ', icon: Image, length: banners.length },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as AdminTab)}
+                  className={`px-4 py-2.5 text-xs font-bold uppercase flex items-center gap-2 border-b-2 transition ${activeTab === tab.id ? 'border-brand-gold text-brand-charcoal' : 'border-transparent text-brand-muted hover:text-brand-charcoal'}`}
+                >
+                  <tab.icon size={13} /> {tab.label} {tab.id !== 'settings' && `(${tab.length})`}
+                </button>
+              ))}
+            </div>
+
+            {loading ? (
+              <div className="py-20 text-center text-xs text-brand-muted uppercase tracking-widest">Đang tải dữ liệu máy chủ...</div>
+            ) : (
+              <div className="space-y-6">
                 
-                <div className="space-y-6">
-                  {/* Thông tin cơ bản */}
-                  <input className="w-full border p-2" placeholder="Tên sản phẩm" value={editingProduct.name || ''} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} />
-                  <input className="w-full border p-2" type="number" placeholder="Giá tiền" value={editingProduct.price || ''} onChange={e => setEditingProduct({...editingProduct, price: Number(e.target.value)})} />
-                  
-                  {/* CHỌN DANH MỤC */}
-                  <div>
-                    <label className="font-bold block mb-1">Thuộc danh mục:</label>
-                    <select className="w-full border p-2.5 rounded" value={editingProduct.category_id || ''} onChange={e => setEditingProduct({...editingProduct, category_id: e.target.value})}>
-                      <option value="">-- Chọn danh mục --</option>
-                      {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-
-                  {/* CHỌN MÀU (TRỰC QUAN) */}
-                  <div className="border p-4 rounded bg-gray-50">
-                    <label className="font-bold block mb-2">Chọn màu sắc (Tích chọn):</label>
-                    <div className="flex items-center gap-4 mb-3">
-                      <input type="color" value={tempColor} onChange={e => setTempColor(e.target.value)} className="w-12 h-12 cursor-pointer" />
-                      <button type="button" onClick={() => setEditingProduct({...editingProduct, colors: [...(editingProduct.colors || []), tempColor]})} className="bg-black text-white px-4 py-2 hover:bg-gray-800">Thêm màu này</button>
+                {/* TAB ĐƠN HÀNG */}
+                {activeTab === 'orders' && (
+                  <div className="space-y-4 font-sans animate-fadeIn">
+                    
+                    <div className="flex justify-between items-center pb-2">
+                      <div>
+                        <h3 className="text-sm font-semibold tracking-widest text-brand-charcoal uppercase">QUẢN LÝ TIẾN ĐỘ ĐƠN HÀNG</h3>
+                        <p className="text-[11px] text-brand-muted">Giám sát quy trình thiết kế, in ấn và giao hàng</p>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {editingProduct.colors?.map((c, i) => (
-                        <div key={i} className="relative w-8 h-8 rounded-full border shadow cursor-pointer" style={{backgroundColor: c}}>
-                          <button type="button" onClick={() => setEditingProduct({...editingProduct, colors: editingProduct.colors?.filter((_,idx) => idx !== i)})} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5"><X size={10}/></button>
+
+                    <div className="flex gap-2 text-xs">
+                      <button onClick={() => setOrderFilter('all')} className={`px-4 py-2 rounded-full font-bold transition ${orderFilter === 'all' ? 'bg-brand-charcoal text-white' : 'bg-white border text-gray-500 hover:bg-gray-50'}`}>Tất cả Đơn ({orders.length})</button>
+                      <button onClick={() => setOrderFilter('custom')} className={`px-4 py-2 rounded-full font-bold transition ${orderFilter === 'custom' ? 'bg-brand-gold text-brand-charcoal shadow-sm' : 'bg-white border text-gray-500 hover:bg-gray-50'}`}>Đơn Có Hình In ({orders.filter(o => !isBlankOrder(o)).length})</button>
+                      <button onClick={() => setOrderFilter('blank')} className={`px-4 py-2 rounded-full font-bold transition ${orderFilter === 'blank' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white border text-gray-500 hover:bg-gray-50'}`}>Đơn Mua Phôi Trơn ({orders.filter(o => isBlankOrder(o)).length})</button>
+                    </div>
+
+                    <div className="overflow-x-auto border border-brand-charcoal/10 rounded-sm">
+                      <table className="w-full text-left text-xs divide-y divide-brand-charcoal/10">
+                        <thead className="bg-brand-cream text-[10px] tracking-wider text-brand-muted uppercase font-bold">
+                          <tr>
+                            <th className="p-4">Mã Đơn / Phân Loại</th>
+                            <th className="p-4">Thông tin khách</th>
+                            <th className="p-4">Sản Phẩm & Size</th>
+                            <th className="p-4">Trạng thái</th>
+                            <th className="p-4 text-center">Thao tác</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-brand-charcoal/10 bg-white">
+                          {orders.filter(o => {
+                            if (orderFilter === 'custom') return !isBlankOrder(o);
+                            if (orderFilter === 'blank') return isBlankOrder(o);
+                            return true;
+                          }).map((ord) => (
+                            <tr key={ord.id} className="hover:bg-brand-cream/10 transition">
+                              <td className="p-4">
+                                <span className="font-mono font-bold text-brand-charcoal block mb-1">#{ord.id}</span>
+                                {isBlankOrder(ord) ? (
+                                   <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[9px] font-bold tracking-widest uppercase">MUA PHÔI TRƠN</span>
+                                ) : (
+                                   <span className="bg-brand-gold/30 text-brand-charcoal px-2 py-0.5 rounded text-[9px] font-bold tracking-widest uppercase">IN THEO YÊU CẦU</span>
+                                )}
+                              </td>
+                              <td className="p-4">
+                                <p className="font-bold text-sm">{ord.customer_name}</p>
+                                <p className="text-gray-500 font-mono mt-0.5">{ord.customer_phone}</p>
+                                <p className="text-gray-400 font-light mt-0.5 line-clamp-1" title={ord.customer_address}>{ord.customer_address}</p>
+                              </td>
+                              <td className="p-4">
+                                <p className="font-bold">{ord.shirt_type}</p>
+                                <p className="text-gray-500 mt-0.5">Size: <strong className="text-black">{ord.shirt_size}</strong> • SL: <strong>{ord.quantity}</strong></p>
+                                {!isBlankOrder(ord) && (
+                                  <a href={ord.design_file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[10px] text-blue-600 underline font-bold mt-1 hover:text-blue-800">
+                                    <Image size={10}/> Xem Hình In
+                                  </a>
+                                )}
+                              </td>
+                              <td className="p-4">
+                                <select value={ord.status} onChange={(e) => handleUpdateOrderStatus(ord.id, e.target.value as CustomOrder['status'])} className="border rounded p-1.5 font-bold text-[10px] bg-gray-50 cursor-pointer">
+                                  <option value="pending">⏳ Chờ xử lý</option>
+                                  <option value="approved">🛡️ Đã duyệt thiết kế</option>
+                                  <option value="printing">🖨️ Đang in / Ép</option>
+                                  <option value="shipping">🚚 Đang giao hàng</option>
+                                  <option value="completed">✅ Đã hoàn thành</option>
+                                  <option value="cancelled">❌ Hủy đơn</option>
+                                </select>
+                              </td>
+                              <td className="p-4 text-center">
+                                <div className="flex justify-center gap-2">
+                                  <button onClick={() => setEditingOrder(ord)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded" title="Sửa chi tiết"><Edit3 size={14} /></button>
+                                  <button onClick={() => handleDeleteOrder(ord.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded" title="Xóa vĩnh viễn"><Trash2 size={14} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {orders.length === 0 && (
+                            <tr><td colSpan={5} className="text-center p-8 text-gray-500">Chưa có dữ liệu đơn hàng.</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* MODAL SỬA ĐƠN HÀNG */}
+                {editingOrder && (
+                  <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-fadeIn">
+                    <form onSubmit={handleSaveEditedOrder} className="bg-white rounded-lg w-full max-w-xl text-xs overflow-hidden shadow-2xl">
+                      <div className="p-4 bg-brand-charcoal text-white flex justify-between items-center">
+                        <h4 className="font-bold text-sm uppercase tracking-wide">CHỈNH SỬA CHI TIẾT ĐƠN HÀNG</h4>
+                        <button type="button" onClick={() => setEditingOrder(null)} className="text-gray-300 hover:text-white">✕ ĐÓNG</button>
+                      </div>
+                      <div className="p-6 space-y-4 font-sans">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div><label className="font-bold block mb-1">Tên khách hàng</label><input type="text" value={editingOrder.customer_name || ''} onChange={e => setEditingOrder({...editingOrder, customer_name: e.target.value})} className="w-full border p-2.5 rounded"/></div>
+                          <div><label className="font-bold block mb-1">Số điện thoại</label><input type="text" value={editingOrder.customer_phone || ''} onChange={e => setEditingOrder({...editingOrder, customer_phone: e.target.value})} className="w-full border p-2.5 rounded font-mono"/></div>
+                        </div>
+                        <div><label className="font-bold block mb-1">Địa chỉ giao hàng</label><input type="text" value={editingOrder.customer_address || ''} onChange={e => setEditingOrder({...editingOrder, customer_address: e.target.value})} className="w-full border p-2.5 rounded"/></div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div><label className="font-bold block mb-1">Trạng thái đơn</label>
+                            <select value={editingOrder.status} onChange={e => setEditingOrder({...editingOrder, status: e.target.value as any})} className="w-full border p-2.5 rounded font-bold">
+                               <option value="pending">⏳ Chờ xử lý</option>
+                               <option value="approved">🛡️ Đã duyệt thiết kế</option>
+                               <option value="printing">🖨️ Đang in / Ép nhiệt</option>
+                               <option value="shipping">🚚 Đang giao hàng</option>
+                               <option value="completed">✅ Đã hoàn thành</option>
+                               <option value="cancelled">❌ Đã hủy đơn</option>
+                            </select>
+                          </div>
+                          <div><label className="font-bold block mb-1">Tổng Tiền (VNĐ)</label><input type="number" value={editingOrder.price_calc || 0} onChange={e => setEditingOrder({...editingOrder, price_calc: Number(e.target.value)})} className="w-full border p-2.5 rounded text-red-600 font-bold"/></div>
+                        </div>
+                        
+                        <div><label className="font-bold block mb-1">Ghi chú của đơn hàng</label><textarea rows={3} value={editingOrder.notes || ''} onChange={e => setEditingOrder({...editingOrder, notes: e.target.value})} className="w-full border p-2.5 rounded"/></div>
+                      </div>
+                      <div className="p-4 bg-gray-100 flex gap-4">
+                        <button type="submit" className="flex-1 bg-brand-gold text-brand-charcoal py-3 font-bold uppercase rounded hover:bg-yellow-500 shadow">LƯU THAY ĐỔI</button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                {/* TAB CÀI ĐẶT WEBSITE */}
+                {activeTab === 'settings' && siteSettings && (
+                  <form onSubmit={handleSaveSettings} className="bg-white border rounded shadow-sm overflow-hidden text-xs font-sans animate-fadeIn">
+                    <div className="bg-brand-charcoal text-white p-4">
+                      <h3 className="text-sm font-bold uppercase tracking-wider">CẤU HÌNH HIỂN THỊ WEBSITE TOÀN DIỆN</h3>
+                    </div>
+                    <div className="p-6 space-y-8">
+                      <div className="space-y-4"><h4 className="font-bold text-brand-gold uppercase border-b pb-1 flex items-center gap-2"><Percent size={14}/> 1. THANH THÔNG BÁO KHUYẾN MÃI (TOPBAR)</h4><div><label className="block text-gray-600 mb-1">Dòng chữ chạy trên cùng</label><input type="text" value={siteSettings.topbar_text || ''} onChange={e => setSiteSettings({...siteSettings, topbar_text: e.target.value})} className="w-full border-2 focus:border-brand-gold p-2.5 rounded bg-yellow-50 font-bold"/></div></div>
+                      <div className="space-y-4"><h4 className="font-bold text-brand-gold uppercase border-b pb-1">2. NHẬN DIỆN THƯƠNG HIỆU</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div className="space-y-2"><label className="block text-gray-600">Tải ảnh Logo chính</label><div className="border-2 border-dashed border-gray-300 rounded p-4 text-center cursor-pointer hover:border-brand-gold relative h-24 flex flex-col justify-center"><input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleSingleImageUpload(e, 'site-assets', (url) => setSiteSettings({...siteSettings, logo_url: url}))} /><p className="text-[11px] text-gray-500 font-medium">{siteSettings.logo_url ? '✓ Đã cập nhật Logo (Bấm thay thế)' : 'Bấm để tải file Logo lên'}</p></div>{siteSettings.logo_url && <img src={siteSettings.logo_url} className="h-8 object-contain bg-gray-100 p-1 border rounded" alt="Logo"/>}</div><div className="space-y-2"><label className="block text-gray-600">Favicon</label><div className="border-2 border-dashed border-gray-300 rounded p-4 text-center cursor-pointer hover:border-brand-gold relative h-24 flex flex-col justify-center"><input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleSingleImageUpload(e, 'site-assets', (url) => setSiteSettings({...siteSettings, favicon_url: url}))} /><p className="text-[11px] text-gray-500 font-medium">{siteSettings.favicon_url ? '✓ Đã cập nhật Favicon' : 'Bấm để tải Favicon lên'}</p></div></div></div><div className="grid grid-cols-2 gap-4"><div><label className="block text-gray-600 mb-1">Tên Cửa Hàng</label><input type="text" value={siteSettings.site_name || ''} onChange={e => setSiteSettings({...siteSettings, site_name: e.target.value})} className="w-full border p-2.5 rounded"/></div><div><label className="block text-gray-600 mb-1">Slogan</label><input type="text" value={siteSettings.site_slogan || ''} onChange={e => setSiteSettings({...siteSettings, site_slogan: e.target.value})} className="w-full border p-2.5 rounded"/></div></div></div>
+                      <div className="space-y-4"><h4 className="font-bold text-brand-gold uppercase border-b pb-1">3. LIÊN HỆ & MẠNG XÃ HỘI</h4><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><div><label className="block text-gray-600 mb-1">Zalo tư vấn</label><input type="text" value={siteSettings.zalo || ''} onChange={e => setSiteSettings({...siteSettings, zalo: e.target.value})} className="w-full border p-2.5 rounded border-blue-200"/></div><div><label className="block text-gray-600 mb-1">Hotline</label><input type="text" value={siteSettings.hotline || ''} onChange={e => setSiteSettings({...siteSettings, hotline: e.target.value})} className="w-full border p-2.5 rounded"/></div><div><label className="block text-gray-600 mb-1">Link Facebook</label><input type="text" value={siteSettings.facebook_url || ''} onChange={e => setSiteSettings({...siteSettings, facebook_url: e.target.value})} className="w-full border p-2.5 rounded"/></div><div><label className="block text-gray-600 mb-1">Link Tiktok</label><input type="text" value={siteSettings.tiktok_url || ''} onChange={e => setSiteSettings({...siteSettings, tiktok_url: e.target.value})} className="w-full border p-2.5 rounded"/></div></div><div className="grid grid-cols-2 gap-4"><div><label className="block text-gray-600 mb-1">Link Shopee</label><input type="text" value={siteSettings.shopee_url || ''} onChange={e => setSiteSettings({...siteSettings, shopee_url: e.target.value})} className="w-full border p-2.5 rounded"/></div><div><label className="block text-gray-600 mb-1">Link Instagram</label><input type="text" value={siteSettings.instagram_url || ''} onChange={e => setSiteSettings({...siteSettings, instagram_url: e.target.value})} className="w-full border p-2.5 rounded"/></div></div><div className="grid grid-cols-2 gap-4"><div><label className="block text-gray-600 mb-1">Email hỗ trợ khách</label><input type="email" value={siteSettings.support_email || ''} onChange={e => setSiteSettings({...siteSettings, support_email: e.target.value})} className="w-full border p-2.5 rounded"/></div><div><label className="block text-gray-600 mb-1">Địa chỉ cửa hàng</label><input type="text" value={siteSettings.address || ''} onChange={e => setSiteSettings({...siteSettings, address: e.target.value})} className="w-full border p-2.5 rounded"/></div></div></div>
+                      <div className="space-y-4"><h4 className="font-bold text-brand-gold uppercase border-b pb-1">4. THÔNG TIN CHÂN TRANG (FOOTER)</h4><div><label className="block text-gray-600 mb-1">Mô tả ngắn gọn</label><textarea rows={2} value={siteSettings.company_description || ''} onChange={e => setSiteSettings({...siteSettings, company_description: e.target.value})} className="w-full border p-2.5 rounded"/></div><div className="grid grid-cols-3 gap-4 bg-gray-50 p-4 rounded border"><p className="col-span-3 font-bold text-brand-charcoal border-b pb-1">Các cam kết điểm chất lượng</p><div><label className="block text-gray-600 mb-1">Cam kết 1</label><input type="text" value={siteSettings.footer_quality_text_1 || ''} onChange={e => setSiteSettings({...siteSettings, footer_quality_text_1: e.target.value})} className="w-full border p-2.5 rounded bg-white"/></div><div><label className="block text-gray-600 mb-1">Cam kết 2</label><input type="text" value={siteSettings.footer_quality_text_2 || ''} onChange={e => setSiteSettings({...siteSettings, footer_quality_text_2: e.target.value})} className="w-full border p-2.5 rounded bg-white"/></div><div><label className="block text-gray-600 mb-1">Cam kết 3</label><input type="text" value={siteSettings.footer_quality_text_3 || ''} onChange={e => setSiteSettings({...siteSettings, footer_quality_text_3: e.target.value})} className="w-full border p-2.5 rounded bg-white"/></div></div></div>
+                    </div>
+                    <div className="p-6 bg-brand-cream border-t"><button type="submit" className="w-full bg-brand-gold text-brand-charcoal py-4 font-bold text-sm uppercase tracking-widest rounded shadow transition hover:bg-yellow-500">LƯU TẤT CẢ CÀI ĐẶT LÊN TRANG WEB</button></div>
+                  </form>
+                )}
+
+                {/* TAB SẢN PHẨM */}
+                {activeTab === 'products' && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <div className="flex justify-between items-center"><h3 className="font-bold text-sm uppercase">Kho sản phẩm & Áo Phôi</h3>
+                    <button onClick={() => setEditingProduct({ images: [], sizes: ['S','M','L','XL'], colors: ['#111111','#FFFFFF'], inventory: 100, price: 150000 })} className="bg-brand-charcoal text-white text-xs px-4 py-2 rounded flex items-center gap-1"><Plus size={12}/> Thêm sản phẩm</button></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                      {products.map(p => (
+                        <div key={p.id} className="bg-white border rounded p-4 space-y-2 flex flex-col justify-between">
+                          <img src={p.images?.[0] || 'https://via.placeholder.com/150'} className="w-full h-40 object-cover rounded border" alt=""/>
+                          <h4 className="font-bold text-sm mt-2 line-clamp-1">{p.name}</h4>
+                          <div className="flex gap-2 pt-2 border-t"><button onClick={() => setEditingProduct(p)} className="w-1/2 bg-gray-100 hover:bg-gray-200 text-xs py-1.5 rounded font-bold">Sửa</button><button onClick={() => handleDelete('prod', p.id)} className="w-1/2 text-red-600 border border-red-100 text-xs py-1.5 rounded font-bold">Xóa</button></div>
                         </div>
                       ))}
                     </div>
+                    {editingProduct && (
+                      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+                        <form onSubmit={handleSaveProduct} className="bg-white rounded-lg w-full max-w-3xl space-y-0 text-xs max-h-[90vh] overflow-y-auto font-sans flex flex-col shadow-2xl">
+                          <div className="p-4 bg-brand-charcoal text-white flex justify-between items-center"><h4 className="font-bold text-sm">SOẠN SẢN PHẨM</h4><button type="button" onClick={() => setEditingProduct(null)}>✕ ĐÓNG</button></div>
+                          <div className="p-6 space-y-6 flex-1 overflow-y-auto">
+                            <div className="space-y-2 bg-gray-50 p-4 border rounded"><label className="block font-bold">Hình ảnh sản phẩm</label><input type="file" multiple accept="image/*" onChange={handleMultipleImagesUpload} className="w-full border p-2 bg-white" /></div>
+                            <div><label className="font-bold block mb-1">Tên sản phẩm</label><input type="text" required value={editingProduct.name || ''} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full border p-2.5 rounded"/></div>
+                            <div><label className="font-bold block mb-1">Giá bán</label><input type="number" required value={editingProduct.price || ''} onChange={e => setEditingProduct({...editingProduct, price: Number(e.target.value)})} className="w-full border p-2.5 rounded"/></div>
+                            <div><label className="font-bold block mb-1">Mô tả</label><textarea rows={3} value={editingProduct.description || ''} onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} className="w-full border p-2.5 rounded"/></div>
+                          </div>
+                          <div className="p-4 bg-gray-100"><button type="submit" className="w-full bg-brand-gold py-3 font-bold uppercase rounded">LƯU SẢN PHẨM</button></div>
+                        </form>
+                      </div>
+                    )}
                   </div>
-                  
-                  {/* Ảnh */}
-                  <input type="file" multiple onChange={handleMultipleImagesUpload} className="border p-2 w-full" />
-                  
-                  <div className="flex gap-2 pt-4">
-                    <button type="submit" className="flex-1 bg-green-600 text-white py-3 font-bold hover:bg-green-700">LƯU SẢN PHẨM</button>
-                    <button type="button" onClick={() => setEditingProduct(null)} className="flex-1 bg-gray-200 py-3 hover:bg-gray-300">HỦY</button>
+                )}
+                
+                {/* TAB DANH MỤC */}
+                {activeTab === 'categories' && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <div className="flex justify-between items-center"><h3 className="font-bold text-sm uppercase">Danh mục phôi</h3><button onClick={() => setEditingCategory({ active: true, sort_order: 1 })} className="bg-brand-charcoal text-white text-xs px-4 py-2 rounded flex items-center gap-1"><Plus size={12}/> Thêm danh mục</button></div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      {categories.map(c => (
+                        <div key={c.id} className="bg-white border rounded p-4 space-y-2">
+                          <img src={c.image_url || 'https://via.placeholder.com/150'} className="w-full h-32 object-cover rounded border" alt=""/>
+                          <h4 className="font-bold text-sm">{c.name}</h4>
+                          <div className="flex gap-2"><button onClick={() => setEditingCategory(c)} className="border text-xs px-2 py-1 rounded">Sửa</button><button onClick={() => handleDelete('cat', c.id)} className="text-red-600 border text-xs px-2 py-1 rounded">Xóa</button></div>
+                        </div>
+                      ))}
+                    </div>
+                    {editingCategory && (
+                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                        <form onSubmit={handleSaveCategory} className="bg-white p-6 rounded w-full max-w-sm space-y-4 text-xs">
+                          <h4 className="font-bold text-sm border-b pb-2">CHỈNH SỬA DANH MỤC</h4>
+                          <input type="file" accept="image/*" onChange={e => handleSingleImageUpload(e, 'products', (url) => setEditingCategory({...editingCategory, image_url: url}))} className="w-full border p-2" />
+                          <input type="text" placeholder="Tên danh mục..." required value={editingCategory.name || ''} onChange={e => setEditingCategory({...editingCategory, name: e.target.value})} className="w-full border p-2 rounded"/>
+                          <div className="flex gap-2"><button type="submit" className="w-1/2 bg-brand-gold py-2 font-bold rounded">Lưu</button><button type="button" onClick={() => setEditingCategory(null)} className="w-1/2 bg-gray-200 py-2 rounded">Đóng</button></div>
+                        </form>
+                      </div>
+                    )}
                   </div>
-                </div>
-              </form>
-            </div>
-          )}
-        </div>
-      )}
+                )}
+
+                {/* TAB BANNERS */}
+                {activeTab === 'banners' && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <div className="flex justify-between items-center"><h3 className="font-bold text-sm uppercase">Banner Trang Chủ</h3><button onClick={() => setEditingBanner({ active: true, sort_order: 1 })} className="bg-brand-charcoal text-white text-xs px-4 py-2 rounded flex items-center gap-1"><Plus size={12}/> Thêm Banner</button></div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {banners.map(b => (
+                        <div key={b.id} className="bg-white border rounded p-4 space-y-3">
+                          <img src={b.image_url} className="w-full h-40 object-cover rounded border" alt=""/>
+                          <h4 className="font-bold text-sm">{b.title}</h4>
+                          <div className="flex gap-2"><button onClick={() => setEditingBanner(b)} className="border text-xs px-3 py-1 rounded">Sửa</button><button onClick={() => handleDelete('banner', b.id)} className="text-red-600 border text-xs px-3 py-1 rounded">Xóa</button></div>
+                        </div>
+                      ))}
+                    </div>
+                    {editingBanner && (
+                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                        <form onSubmit={handleSaveBanner} className="bg-white p-6 rounded w-full max-w-md space-y-4 text-xs">
+                          <h4 className="font-bold text-sm border-b pb-2">CHỈNH SỬA BANNER</h4>
+                          <input type="file" accept="image/*" onChange={e => handleSingleImageUpload(e, 'banners', (url) => setEditingBanner({...editingBanner, image_url: url}))} className="w-full border p-2" />
+                          <input type="text" placeholder="Tiêu đề..." required value={editingBanner.title || ''} onChange={e => setEditingBanner({...editingBanner, title: e.target.value})} className="w-full border p-2 rounded"/>
+                          <div className="flex gap-2"><button type="submit" className="w-1/2 bg-brand-gold py-2 font-bold rounded">Lưu</button><button type="button" onClick={() => setEditingBanner(null)} className="w-1/2 bg-gray-200 py-2 rounded">Đóng</button></div>
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
