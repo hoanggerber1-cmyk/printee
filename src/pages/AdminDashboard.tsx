@@ -128,9 +128,13 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
   const handleSaveProduct = async (e: FormEvent) => {
     e.preventDefault();
     if (!editingProduct?.name || !editingProduct?.price) return showToast('Cần điền Tên và Giá!', 'error');
+    
+    // Nếu sản phẩm mới chưa chọn category_id, tự động gán ID của danh mục đầu tiên trong danh sách
+    const finalCategoryId = editingProduct.category_id || (categories.length > 0 ? categories[0].id : '');
+    
     const full: Product = {
       id: editingProduct.id || `prod-${Date.now()}`, name: editingProduct.name, description: editingProduct.description || '',
-      category_id: editingProduct.category_id || categories[0]?.id || '', price: Number(editingProduct.price),
+      category_id: finalCategoryId, price: Number(editingProduct.price),
       original_price: editingProduct.original_price ? Number(editingProduct.original_price) : undefined,
       colors: editingProduct.colors || [], sizes: editingProduct.sizes || [], images: editingProduct.images || [],
       status: editingProduct.status as any || 'active', inventory: Number(editingProduct.inventory) || 0,
@@ -414,17 +418,126 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
                         </div>
                       ))}
                     </div>
+                    
+                    {/* MODAL SOẠN SẢN PHẨM (ĐÃ CẬP NHẬT HOÀN CHỈNH) */}
                     {editingProduct && (
                       <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
                         <form onSubmit={handleSaveProduct} className="bg-white rounded-lg w-full max-w-3xl space-y-0 text-xs max-h-[90vh] overflow-y-auto font-sans flex flex-col shadow-2xl">
-                          <div className="p-4 bg-brand-charcoal text-white flex justify-between items-center"><h4 className="font-bold text-sm">SOẠN SẢN PHẨM</h4><button type="button" onClick={() => setEditingProduct(null)}>✕ ĐÓNG</button></div>
-                          <div className="p-6 space-y-6 flex-1 overflow-y-auto">
-                            <div className="space-y-2 bg-gray-50 p-4 border rounded"><label className="block font-bold">Hình ảnh sản phẩm</label><input type="file" multiple accept="image/*" onChange={handleMultipleImagesUpload} className="w-full border p-2 bg-white" /></div>
-                            <div><label className="font-bold block mb-1">Tên sản phẩm</label><input type="text" required value={editingProduct.name || ''} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full border p-2.5 rounded"/></div>
-                            <div><label className="font-bold block mb-1">Giá bán</label><input type="number" required value={editingProduct.price || ''} onChange={e => setEditingProduct({...editingProduct, price: Number(e.target.value)})} className="w-full border p-2.5 rounded"/></div>
-                            <div><label className="font-bold block mb-1">Mô tả</label><textarea rows={3} value={editingProduct.description || ''} onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} className="w-full border p-2.5 rounded"/></div>
+                          <div className="p-4 bg-brand-charcoal text-white flex justify-between items-center">
+                            <h4 className="font-bold text-sm uppercase tracking-wider">Cấu Hình Thông Tin Sản Phẩm</h4>
+                            <button type="button" onClick={() => setEditingProduct(null)}>✕ ĐÓNG</button>
                           </div>
-                          <div className="p-4 bg-gray-100"><button type="submit" className="w-full bg-brand-gold py-3 font-bold uppercase rounded">LƯU SẢN PHẨM</button></div>
+                          
+                          <div className="p-6 space-y-6 flex-1 overflow-y-auto text-left">
+                            {/* 1. Hình ảnh sản phẩm */}
+                            <div className="space-y-2 bg-gray-50 p-4 border rounded">
+                              <label className="block font-bold text-gray-700">Hình ảnh sản phẩm (Có thể chọn nhiều ảnh)</label>
+                              <input type="file" multiple accept="image/*" onChange={handleMultipleImagesUpload} className="w-full border p-2 bg-white rounded" />
+                              {/* Preview danh sách ảnh đang gán cho sản phẩm */}
+                              {editingProduct.images && editingProduct.images.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-dashed">
+                                  {editingProduct.images.map((img, idx) => (
+                                    <div key={idx} className="relative group border rounded p-1 bg-white">
+                                      <img src={img} className="h-16 w-16 object-cover rounded" alt={`uploaded-${idx}`} />
+                                      <button 
+                                        type="button" 
+                                        onClick={() => {
+                                          const filtered = editingProduct.images?.filter((_, i) => i !== idx);
+                                          setEditingProduct({...editingProduct, images: filtered});
+                                        }}
+                                        className="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold shadow hover:bg-red-700"
+                                        title="Xóa ảnh này"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* 2. Tên và Danh mục liên kết */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="font-bold block mb-1 text-gray-700">Tên sản phẩm / Phôi áo</label>
+                                <input type="text" required value={editingProduct.name || ''} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full border p-2.5 rounded bg-white outline-none focus:border-brand-gold"/>
+                              </div>
+                              <div>
+                                <label className="font-bold block mb-1 text-gray-700">Thuộc danh mục phôi</label>
+                                <select 
+                                  value={editingProduct.category_id || (categories.length > 0 ? categories[0].id : '')} 
+                                  onChange={e => setEditingProduct({...editingProduct, category_id: e.target.value})} 
+                                  className="w-full border p-2.5 rounded bg-white font-medium outline-none focus:border-brand-gold"
+                                >
+                                  {categories.length === 0 && <option value="">-- Chưa có danh mục nào --</option>}
+                                  {categories.map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* 3. Giá cả và Kho số lượng */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="font-bold block mb-1 text-gray-700">Giá bán gốc (VNĐ)</label>
+                                <input type="number" required value={editingProduct.price || ''} onChange={e => setEditingProduct({...editingProduct, price: Number(e.target.value)})} className="w-full border p-2.5 rounded bg-white outline-none focus:border-brand-gold font-mono"/>
+                              </div>
+                              <div>
+                                <label className="font-bold block mb-1 text-gray-700">Số lượng tồn kho ban đầu</label>
+                                <input type="number" value={editingProduct.inventory ?? 100} onChange={e => setEditingProduct({...editingProduct, inventory: Number(e.target.value)})} className="w-full border p-2.5 rounded bg-white outline-none focus:border-brand-gold font-mono"/>
+                              </div>
+                            </div>
+
+                            {/* 4. Bảng màu sắc chi tiết cho phôi thời trang */}
+                            <div className="space-y-2">
+                              <label className="font-bold block text-gray-700">Màu sắc sản phẩm hỗ trợ (Tick chọn các màu muốn áp dụng):</label>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                                {[
+                                  { label: 'Đen Trơn', hex: '#111111' }, { label: 'Trắng Sạch', hex: '#FFFFFF' },
+                                  { label: 'Xám Tiêu', hex: '#7E7C77' }, { label: 'Xanh Navy', hex: '#1B2C3F' },
+                                  { label: 'Xanh Rêu', hex: '#3B4C3A' }, { label: 'Kem Ivory', hex: '#F4EFEB' },
+                                  { label: 'Cam Street', hex: '#E36414' }, { label: 'Đỏ Đô/Burgundy', hex: '#591A2A' }
+                                ].map(color => {
+                                  const isSelected = editingProduct.colors?.includes(color.hex);
+                                  return (
+                                    <label key={color.hex} className={`flex items-center gap-2.5 border p-2.5 rounded cursor-pointer select-none transition ${isSelected ? 'border-brand-gold bg-yellow-50/70 shadow-sm font-bold' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
+                                      <input 
+                                        type="checkbox" 
+                                        checked={isSelected || false}
+                                        onChange={(e) => {
+                                          const currentColors = editingProduct.colors || [];
+                                          if (e.target.checked) {
+                                            setEditingProduct({...editingProduct, colors: [...currentColors, color.hex]});
+                                          } else {
+                                            setEditingProduct({...editingProduct, colors: currentColors.filter(c => c !== color.hex)});
+                                          }
+                                        }}
+                                        className="rounded border-gray-300 text-brand-gold focus:ring-brand-gold h-3.5 w-3.5 cursor-pointer"
+                                      />
+                                      <div 
+                                        className={`w-4 h-4 rounded-full border shadow-inner ${color.hex === '#FFFFFF' ? 'border-gray-300' : 'border-transparent'}`} 
+                                        style={{ backgroundColor: color.hex }}
+                                      ></div>
+                                      <span className="text-[11px] truncate">{color.label}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* 5. Mô tả chi tiết */}
+                            <div>
+                              <label className="font-bold block mb-1 text-gray-700">Mô tả thông số chi tiết sản phẩm</label>
+                              <textarea rows={4} value={editingProduct.description || ''} onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} className="w-full border p-2.5 rounded bg-white outline-none focus:border-brand-gold" placeholder="Nhập chất liệu vải, định lượng GSM, cách bảo quản hoặc hướng dẫn chọn size..."/>
+                            </div>
+                          </div>
+                          
+                          <div className="p-4 bg-gray-100 border-t flex gap-4">
+                            <button type="submit" className="flex-1 bg-brand-gold py-3 font-bold uppercase rounded shadow hover:bg-yellow-500 transition text-brand-charcoal tracking-widest text-xs">
+                              LƯU THÔNG TIN SẢN PHẨM
+                            </button>
+                          </div>
                         </form>
                       </div>
                     )}
