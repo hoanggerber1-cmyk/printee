@@ -47,9 +47,7 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
     fetchOrders();
   }, [customerUser]);
 
-  // ==========================================
-  // LOGIC XỬ LÝ ĐĂNG NHẬP / ĐĂNG KÝ (ĐÃ BẢO MẬT)
-  // ==========================================
+  // Logic xử lý Đăng nhập / Đăng ký
   const handleAuthSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
@@ -62,11 +60,9 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
       }
       
       try {
-        // BẢO MẬT: Chỉ truy vấn đúng 1 user từ Database, không tải toàn bộ danh sách
         const existing = await dbSim.customers.getByEmail(email);
         
         if (existing) {
-          // BẢO MẬT: Bắt buộc kiểm tra khớp mật khẩu
           if (existing.password === password) {
             setCustomerUser({ email: existing.email, full_name: existing.full_name });
             setSuccessMsg('Đăng nhập thành công!');
@@ -74,7 +70,7 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
             setErrorMsg('Mật khẩu không chính xác. Vui lòng thử lại.');
           }
         } else {
-          setErrorMsg('Tài khoản chưa tồn tại. Quý khách vui lòng chọn ĐĂNG KÝ THÀNH VIÊN.');
+          setErrorMsg('Tài khoản không tồn tại. Vui lòng chọn ĐĂNG KÝ THÀNH VIÊN.');
         }
       } catch (err) {
         setErrorMsg('Lỗi kết nối máy chủ khi đăng nhập.');
@@ -83,23 +79,21 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
     
     else if (authMode === 'signup') {
       if (!email || !fullName || !password) {
-        setErrorMsg('Vui lòng điền đủ Họ tên, Email, Mật khẩu.');
+        setErrorMsg('Vui lòng điền đủ Họ tên, Email và Mật khẩu.');
         return;
       }
 
       try {
-        // Kiểm tra xem email đã bị đăng ký chưa
         const existing = await dbSim.customers.getByEmail(email);
         if (existing) {
-          setErrorMsg('Email này đã được sử dụng. Vui lòng đăng nhập.');
+          setErrorMsg('Email này đã được sử dụng. Vui lòng chuyển sang Đăng nhập.');
           return;
         }
 
-        // BẢO MẬT: Đã bổ sung lưu trường password vào Database
         await dbSim.customers.save({
           id: `cust-${Date.now()}`,
           email,
-          password: password, // <-- Bắt buộc lưu mật khẩu
+          password: password,
           full_name: fullName,
           phone,
           address,
@@ -107,60 +101,57 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
         } as any);
         
         setCustomerUser({ email, full_name: fullName });
-        setSuccessMsg('Đăng ký và đăng nhập thành công!');
-        // Đặt lại state
+        setSuccessMsg('Đăng ký tài khoản thành công!');
         setAuthMode('login');
       } catch (err) {
-        setErrorMsg('Có lỗi xảy ra trong quá trình thiết lập tài khoản.');
+        setErrorMsg('Có lỗi xảy ra trong quá trình khởi tạo tài khoản.');
       }
     } 
     
     else if (authMode === 'forgot') {
       if (!email) {
-        setErrorMsg('Vui lòng nhập Email để đặt lại mật khẩu.');
+        setErrorMsg('Vui lòng nhập Email để khôi phục mật khẩu.');
         return;
       }
-      setSuccessMsg('Một liên kết phục hồi đã được gửi đến email của bạn.');
+      setSuccessMsg('Một liên kết đặt lại mật khẩu đã được gửi đến email của bạn.');
     }
   };
 
-  // Status mapping to standard design badges
   const getStatusBadge = (status: CustomOrder['status']) => {
     switch (status) {
       case 'pending': 
-        return <span className="bg-yellow-50 text-yellow-800 border border-yellow-200 text-[10px] font-bold px-2.5 py-0.5 rounded-none tracking-widest uppercase">Chờ duyệt file</span>;
+        return <span className="bg-yellow-50 text-yellow-800 border border-yellow-200 text-[10px] font-bold px-2.5 py-0.5 tracking-widest uppercase">Chờ duyệt file</span>;
       case 'approved': 
-        return <span className="bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-bold px-2.5 py-0.5 rounded-none tracking-widest uppercase">Đã duyệt kỹ thuật</span>;
+        return <span className="bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-bold px-2.5 py-0.5 tracking-widest uppercase">Đã duyệt kỹ thuật</span>;
       case 'printing': 
-        return <span className="bg-orange-50 text-orange-800 border border-orange-200 text-[10px] font-bold px-2.5 py-0.5 rounded-none tracking-widest uppercase">Đang in ấn</span>;
+        return <span className="bg-orange-50 text-orange-800 border border-orange-200 text-[10px] font-bold px-2.5 py-0.5 tracking-widest uppercase">Đang in ấn</span>;
       case 'finishing': 
-        return <span className="bg-pink-50 text-pink-800 border border-pink-200 text-[10px] font-bold px-2.5 py-0.5 rounded-none tracking-widest uppercase">Đang hoàn thành</span>;
+        return <span className="bg-pink-50 text-pink-800 border border-pink-200 text-[10px] font-bold px-2.5 py-0.5 tracking-widest uppercase">Đang hoàn thiện</span>;
       case 'shipping': 
-        return <span className="bg-purple-50 text-purple-800 border border-purple-200 text-[10px] font-bold px-2.5 py-0.5 rounded-none tracking-widest uppercase">Đang giao nhận</span>;
+        return <span className="bg-purple-50 text-purple-800 border border-purple-200 text-[10px] font-bold px-2.5 py-0.5 tracking-widest uppercase">Đang giao hàng</span>;
       case 'completed': 
-        return <span className="bg-green-50 text-green-800 border border-green-200 text-[10px] font-bold px-2.5 py-0.5 rounded-none tracking-widest uppercase">Hoàn thành</span>;
+        return <span className="bg-green-50 text-green-800 border border-green-200 text-[10px] font-bold px-2.5 py-0.5 tracking-widest uppercase">Hoàn thành</span>;
       case 'cancelled': 
-        return <span className="bg-red-50 text-red-800 border border-red-200 text-[10px] font-bold px-2.5 py-0.5 rounded-none tracking-widest uppercase">Đã hủy đơn</span>;
+        return <span className="bg-red-50 text-red-800 border border-red-200 text-[10px] font-bold px-2.5 py-0.5 tracking-widest uppercase">Đã hủy đơn</span>;
     }
   };
 
-  // Human state detail logs helper
   const getStatusDetailMessage = (status: CustomOrder['status']) => {
     switch (status) {
       case 'pending':
-        return 'Chuyên viên kỹ thuật đang kiểm nghiệm cấu trúc phân giải hình ảnh, kiểm tra viền màng in PET và chuẩn bị màng keo ép cao tần chống bong rách.';
+        return 'Đơn hàng đang chờ tiếp nhận. Đội ngũ kỹ thuật của PRINTEE sẽ kiểm tra độ phân giải file in và viền màng PET trước khi chuyển xuống xưởng ép.';
       case 'approved':
-        return 'Hình in của bạn đã vượt qua khâu rà soát độ phân giải và đã được thông qua phê duyệt kỹ thuật in ấn.';
+        return 'File thiết kế của bạn đã đạt tiêu chuẩn kỹ thuật in ấn cao tần và đã được phê duyệt xuống lệnh sản xuất.';
       case 'printing':
-        return 'Sản phẩm đang được ép màng khí nén nhiệt sâu trực tiếp lên sợi bông dệt thô thông qua thợ in lành nghề.';
+        return 'Sản phẩm đang trong quy trình ép nhiệt nén khí sâu trực tiếp phim PET lên thớ sợi phôi áo bởi thợ in lành nghề.';
       case 'finishing':
-        return 'Sản phẩm đang được xử lý sấy khử mùi, nhặt chỉ thừa và ép nhiệt phẳng chất diện thô dệt.';
+        return 'Áo đang được xử lý sấy khử mùi, nhặt chỉ thừa, kiểm định bề mặt hình in (QC) và là phẳng chuẩn đóng gói.';
       case 'shipping':
-        return 'Sản phẩm hoàn thành đóng hộp kraft cao cấp cùng gói hút ẩm và đang được trung chuyển đi giao toàn quốc.';
+        return 'Sản phẩm đã được đóng gói kỹ càng trong hộp Kraft cao cấp, đi kèm gói hút ẩm và bàn giao cho đơn vị vận chuyển liên tỉnh.';
       case 'completed':
-        return 'Sản phẩm in ấn chất lượng cao đã cập bến nhận thành công. Chân thành cám ơn bạn đã đồng hành cùng PRINTEE Studio!';
+        return 'Đơn hàng in ấn chất lượng cao đã được giao tới bạn thành công. Chân thành cảm ơn bạn đã đồng hành cùng PRINTEE Studio!';
       case 'cancelled':
-        return 'Đơn hàng in ấn đã bị huỷ bỏ theo nguyện vọng của quý khách hoặc lỗi cấu trúc file thiết kế gốc quá mờ.';
+        return 'Đơn hàng đã bị hủy theo nguyện vọng của quý khách hoặc do file thiết kế gốc gửi lên quá mờ, không đủ tiêu chuẩn in xuất xưởng.';
     }
   };
 
@@ -169,25 +160,22 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {!customerUser ? (
-          /* ==========================================
-             AUTH FORM INTERFACES (LOGIN / SIGNUP)
-             ========================================== */
+          /* GIAO DIỆN FORM ĐĂNG NHẬP / ĐĂNG KÝ MỚI */
           <div className="max-w-md mx-auto bg-brand-cream/30 border border-brand-charcoal/5 p-8 sm:p-10 rounded-none shadow-sm relative">
             
             <div className="text-center space-y-2 mb-8">
               <h2 className="text-3xl font-serif text-brand-charcoal uppercase tracking-widest">
-                {authMode === 'login' && 'CỔNG KHÁCH HÀNG'}
+                {authMode === 'login' && 'ĐĂNG NHẬP'}
                 {authMode === 'signup' && 'ĐĂNG KÝ THÀNH VIÊN'}
-                {authMode === 'forgot' && 'MẬT KHẨU STUDIO'}
+                {authMode === 'forgot' && 'KHÔI PHỤC MẬT KHẨU'}
               </h2>
               <p className="text-xs text-brand-muted font-light leading-relaxed uppercase tracking-widest">
-                {authMode === 'login' && 'Đăng nhập để xem lịch trình nén keo và vận chuyển đơn in.'}
-                {authMode === 'signup' && 'Tạo thẻ tài khoản cá nhân cập nhật tin tức phôi áo.'}
-                {authMode === 'forgot' && 'Khôi phục tài khoản in ấn thông qua hộp thư điện tử.'}
+                {authMode === 'login' && 'Đăng nhập để theo dõi tiến độ sản xuất và hành trình giao nhận đơn in.'}
+                {authMode === 'signup' && 'Khởi tạo tài khoản để quản lý file thiết kế và lưu thông tin nhận hàng.'}
+                {authMode === 'forgot' && 'Nhập email để nhận liên kết khôi phục mật khẩu tài khoản của bạn.'}
               </p>
             </div>
 
-            {/* Error & Message displays */}
             {errorMsg && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2 rounded-none">
                 <AlertCircle size={15} />
@@ -206,34 +194,34 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
               
               {authMode === 'signup' && (
                 <div className="space-y-1.5">
-                  <label className="text-brand-muted uppercase block text-[10px]">Họ tên khách hàng <span className="text-red-500">*</span></label>
+                  <label className="text-brand-muted uppercase block text-[10px] font-bold">Họ và tên <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Nhập họ và tên..."
-                    className="w-full bg-brand-ivory border border-brand-charcoal/10 px-3.5 py-2.5 bg-white rounded-none focus:outline-none focus:border-brand-gold font-sans"
+                    placeholder="Nhập đầy đủ họ tên..."
+                    className="w-full bg-white border border-brand-charcoal/10 px-3.5 py-2.5 rounded-none focus:outline-none focus:border-brand-gold font-sans text-xs"
                   />
                 </div>
               )}
 
               <div className="space-y-1.5">
-                <label className="text-brand-muted uppercase block text-[10px]">Email của bạn <span className="text-red-500">*</span></label>
+                <label className="text-brand-muted uppercase block text-[10px] font-bold">Địa chỉ Email <span className="text-red-500">*</span></label>
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@design.com"
-                  className="w-full bg-brand-ivory border border-brand-charcoal/10 px-3.5 py-2.5 bg-white rounded-none focus:outline-none focus:border-brand-gold font-sans"
+                  placeholder="vi_du@gmail.com"
+                  className="w-full bg-white border border-brand-charcoal/10 px-3.5 py-2.5 rounded-none focus:outline-none focus:border-brand-gold font-sans text-xs"
                 />
               </div>
 
               {authMode !== 'forgot' && (
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
-                    <label className="text-brand-muted uppercase block text-[10px]">Mật khẩu <span className="text-red-500">*</span></label>
+                    <label className="text-brand-muted uppercase block text-[10px] font-bold">Mật khẩu <span className="text-red-500">*</span></label>
                     {authMode === 'login' && (
                       <button 
                         type="button" 
@@ -250,7 +238,7 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-brand-ivory border border-brand-charcoal/10 px-3.5 py-2.5 bg-white rounded-none focus:outline-none focus:border-brand-gold font-sans"
+                    className="w-full bg-white border border-brand-charcoal/10 px-3.5 py-2.5 rounded-none focus:outline-none focus:border-brand-gold font-sans text-xs"
                   />
                 </div>
               )}
@@ -258,24 +246,24 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
               {authMode === 'signup' && (
                 <>
                   <div className="space-y-1.5">
-                    <label className="text-brand-muted uppercase block text-[10px]">Số điện thoại</label>
+                    <label className="text-brand-muted uppercase block text-[10px] font-bold">Số điện thoại</label>
                     <input
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder="Số điện thoại của bạn..."
-                      className="w-full bg-brand-ivory border border-brand-charcoal/10 px-3.5 py-2.5 bg-white rounded-none focus:outline-none focus:border-brand-gold font-sans"
+                      placeholder="Nhập số điện thoại..."
+                      className="w-full bg-white border border-brand-charcoal/10 px-3.5 py-2.5 rounded-none focus:outline-none focus:border-brand-gold font-sans text-xs font-mono"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-brand-muted uppercase block text-[10px]">Địa chỉ giao hàng mặc định</label>
+                    <label className="text-brand-muted uppercase block text-[10px] font-bold">Địa chỉ giao hàng</label>
                     <input
                       type="text"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
-                      placeholder="Số nhà, đường, quận, thành phố..."
-                      className="w-full bg-brand-ivory border border-brand-charcoal/10 px-3.5 py-2.5 bg-white rounded-none focus:outline-none focus:border-brand-gold font-sans"
+                      placeholder="Số nhà, tên đường, quận/huyện, thành phố..."
+                      className="w-full bg-white border border-brand-charcoal/10 px-3.5 py-2.5 rounded-none focus:outline-none focus:border-brand-gold font-sans text-xs"
                     />
                   </div>
                 </>
@@ -283,33 +271,32 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
 
               <button
                 type="submit"
-                className="w-full bg-brand-charcoal hover:bg-brand-gold hover:text-brand-charcoal text-brand-ivory font-sans py-4 uppercase font-semibold tracking-widest transition rounded-none mt-2 cursor-pointer border border-brand-charcoal"
+                className="w-full bg-brand-charcoal hover:bg-brand-gold hover:text-brand-charcoal text-brand-ivory font-sans py-4 uppercase font-semibold tracking-widest transition rounded-none mt-2 cursor-pointer border border-brand-charcoal text-[11px]"
               >
-                {authMode === 'login' && 'Xác Nhận Đăng Nhập'}
-                {authMode === 'signup' && 'Xác Nhận Đăng Ký'}
-                {authMode === 'forgot' && 'Gửi Yêu Cầu Thay Đổi'}
+                {authMode === 'login' && 'ĐĂNG NHẬP'}
+                {authMode === 'signup' && 'ĐĂNG KÝ TÀI KHOẢN'}
+                {authMode === 'forgot' && 'GỬI YÊU CẦU'}
               </button>
 
             </form>
 
-            {/* Mode switch */}
             <div className="mt-6 pt-6 border-t border-brand-charcoal/10 text-center text-[11px] text-brand-muted">
               {authMode === 'login' ? (
                 <p>
-                  Chưa có tài khoản studio?{' '}
+                  Chưa có tài khoản thành viên?{' '}
                   <button 
                     onClick={() => { setAuthMode('signup'); setErrorMsg(''); setSuccessMsg(''); }} 
-                    className="text-brand-gold font-semibold hover:underline uppercase"
+                    className="text-brand-gold font-bold hover:underline uppercase ml-1"
                   >
-                    Đăng ký thành viên
+                    Đăng ký ngay
                   </button>
                 </p>
               ) : (
                 <p>
-                  Đã có tài khoản studio?{' '}
+                  Đã có tài khoản thành viên?{' '}
                   <button 
                     onClick={() => { setAuthMode('login'); setErrorMsg(''); setSuccessMsg(''); }} 
-                    className="text-brand-gold font-semibold hover:underline uppercase"
+                    className="text-brand-gold font-bold hover:underline uppercase ml-1"
                   >
                     Đăng nhập ngay
                   </button>
@@ -319,12 +306,9 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
 
           </div>
         ) : (
-          /* ==========================================
-             CUSTOMER PORTAL VIEW
-             ========================================== */
+          /* GIAO DIỆN QUẢN LÝ LỊCH SỬ ĐƠN HÀNG */
           <div className="space-y-10 text-left" id="customer-orders-portal">
             
-            {/* Direct user bar */}
             <div className="border-b border-brand-charcoal/10 pb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <span className="text-[10px] uppercase tracking-widest text-brand-gold font-bold">Thành viên PRINTEE Studio</span>
@@ -341,7 +325,6 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
                     setLoadingOrders(false);
                   }}
                   className="p-2 border border-brand-charcoal/20 hover:border-brand-charcoal text-brand-charcoal rounded-none text-xs flex items-center gap-1.5 px-3.5 cursor-pointer"
-                  title="Tải lại đơn mới nhất"
                 >
                   <RefreshCw size={13} className={loadingOrders ? 'animate-spin' : ''} /> Làm mới đơn
                 </button>
@@ -351,7 +334,7 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
             {loadingOrders ? (
               <div className="py-24 text-center">
                 <div className="w-10 h-10 border-2 border-brand-gold border-t-transparent rounded-none animate-spin mx-auto mb-2" />
-                <p className="text-xs text-brand-muted font-light uppercase tracking-widest">Đang kết xuất danh hàng từ Database...</p>
+                <p className="text-xs text-brand-muted font-light uppercase tracking-widest">Đang tải danh sách đơn hàng...</p>
               </div>
             ) : orders.length === 0 ? (
               <div className="py-20 text-center bg-brand-cream/20 border border-dashed rounded-none space-y-4">
@@ -359,7 +342,7 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
                 <div className="space-y-2">
                   <h3 className="text-lg font-serif uppercase tracking-wider">Bạn chưa gửi thiết kế đặt in nào</h3>
                   <p className="text-xs text-brand-muted font-light max-w-sm mx-auto">
-                    Mọi đơn đặt in bạn khởi tạo với email này sẽ xuất hiện tự động ngay tại đây.
+                    Mọi đơn hàng được tạo bằng email này sẽ tự động xuất hiện tại đây để bạn kiểm soát tiến độ.
                   </p>
                 </div>
                 <button
@@ -370,12 +353,11 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
                 </button>
               </div>
             ) : (
-              /* Split Screen: Order list left, detailed layout status tracking right */
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 
-                {/* Left: Orders summary stack list */}
-                <div className="lg:col-span-6 space-y-4" id="orders-stack-list">
-                  <h3 className="text-xs font-semibold tracking-widest text-brand-charcoal uppercase mb-2">DANH SÁCH {orders.length} ĐƠN IN CỦA BẠN</h3>
+                {/* Danh sách đơn hàng bên trái */}
+                <div className="lg:col-span-6 space-y-4">
+                  <h3 className="text-xs font-semibold tracking-widest text-brand-charcoal uppercase mb-2">DANH SÁCH ĐƠN IN CỦA BẠN ({orders.length})</h3>
                   {orders.map((ord) => (
                     <div
                       key={ord.id}
@@ -393,7 +375,7 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
                         </div>
                         <p className="font-semibold text-brand-charcoal mt-1 text-sm uppercase tracking-wide">{ord.shirt_type}</p>
                         <p className="text-[11px] text-brand-muted font-light">
-                          Giao nhận: {ord.customer_name} • SĐT: {ord.customer_phone}
+                          Người nhận: {ord.customer_name} • SĐT: {ord.customer_phone}
                         </p>
                         <p className="text-[10px] text-brand-muted font-light flex items-center gap-1.5">
                           <Calendar size={11} /> {new Date(ord.created_at).toLocaleDateString('vi-VN')} {new Date(ord.created_at).toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'})}
@@ -410,60 +392,54 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
                   ))}
                 </div>
 
-                {/* Right: Dynamic details track view */}
-                <div className="lg:col-span-6" id="order-details-tracker-panel">
+                {/* Khung theo dõi chi tiết bên phải */}
+                <div className="lg:col-span-6">
                   {selectedTrackOrder ? (
                     <div className="bg-brand-cream/30 border border-brand-charcoal/5 p-6 sm:p-8 space-y-6 rounded text-xs text-left">
                       
-                      {/* Tracking panel header */}
                       <div className="border-b border-brand-charcoal/10 pb-4 flex justify-between items-start">
                         <div>
-                          <span className="text-[9px] uppercase tracking-widest text-brand-gold font-bold">Theo Dõi Trực Tiếp Supabase</span>
+                          <span className="text-[9px] uppercase tracking-widest text-brand-gold font-bold">Hệ thống sản xuất</span>
                           <h3 className="text-2xl font-serif text-brand-charcoal tracking-tight mt-1">ĐƠN IN #{selectedTrackOrder.id}</h3>
                         </div>
                         {getStatusBadge(selectedTrackOrder.status)}
                       </div>
 
-                      {/* Technical visual flow indicators */}
+                      {/* Tiến trình trực quan */}
                       <div className="space-y-4">
-                        <h4 className="text-[10px] font-bold tracking-widest uppercase text-brand-charcoal">TIẾN ĐỘ THỰC HIỆN CAO TẦN:</h4>
+                        <h4 className="text-[10px] font-bold tracking-widest uppercase text-brand-charcoal">TIẾN ĐỘ THỰC HIỆN XƯỞNG IN:</h4>
                         
                         <div className="relative">
-                          {/* Progress bar line back */}
                           <div className="absolute top-4 left-3 right-3 h-0.5 bg-brand-charcoal/10 -z-0" />
                           
                           <div className="grid grid-cols-4 relative z-10 text-center">
-                            {/* PENDING STEP */}
                             <div className="space-y-1">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto text-xs font-bold leading-none ${
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto text-xs font-bold ${
                                 selectedTrackOrder.status !== 'cancelled' ? 'bg-brand-gold text-brand-charcoal' : 'bg-brand-charcoal/10 text-brand-muted'
                               }`}>1</div>
                               <span className="text-[9px] block uppercase font-semibold text-brand-charcoal">Kiểm file</span>
                             </div>
 
-                            {/* PROCESSING STEP */}
                             <div className="space-y-1">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto text-xs font-bold leading-none ${
-                                ['processing', 'shipping', 'completed'].includes(selectedTrackOrder.status) 
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto text-xs font-bold ${
+                                ['printing', 'finishing', 'shipping', 'completed'].includes(selectedTrackOrder.status) 
                                   ? 'bg-brand-gold text-brand-charcoal' 
                                   : 'bg-brand-charcoal/10 text-brand-muted'
                               }`}>2</div>
-                              <span className="text-[9px] block uppercase font-semibold text-brand-charcoal">Nén nhiệt</span>
+                              <span className="text-[9px] block uppercase font-semibold text-brand-charcoal">Ép nhiệt</span>
                             </div>
 
-                            {/* SHIPPING STEP */}
                             <div className="space-y-1">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto text-xs font-bold leading-none ${
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto text-xs font-bold ${
                                 ['shipping', 'completed'].includes(selectedTrackOrder.status) 
                                   ? 'bg-brand-gold text-brand-charcoal' 
                                   : 'bg-brand-charcoal/10 text-brand-muted'
                               }`}>3</div>
-                              <span className="text-[9px] block uppercase font-semibold text-brand-charcoal">Trung chuyển</span>
+                              <span className="text-[9px] block uppercase font-semibold text-brand-charcoal">Đang giao</span>
                             </div>
 
-                            {/* COMPLETED STEP */}
                             <div className="space-y-1">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto text-xs font-bold leading-none ${
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto text-xs font-bold ${
                                 selectedTrackOrder.status === 'completed' 
                                   ? 'bg-brand-gold text-brand-charcoal' 
                                   : 'bg-brand-charcoal/10 text-brand-muted'
@@ -473,24 +449,22 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
                           </div>
                         </div>
 
-                        {/* Status message log */}
                         <div className="p-4 bg-brand-ivory border text-brand-muted rounded leading-relaxed italic text-[11px]">
                           {getStatusDetailMessage(selectedTrackOrder.status)}
                         </div>
                       </div>
 
-                      {/* Details rows layout */}
                       <div className="divide-y divide-brand-charcoal/10 space-y-3.5">
                         
-                        {/* File preview box */}
+                        {/* File preview */}
                         <div className="pt-3.5">
-                          <span className="text-brand-muted block font-light uppercase text-[9px] mb-2">FILE THIẾT KẾ ĐÃ UPLOAD LÊN SUPABASE:</span>
+                          <span className="text-brand-muted block font-light uppercase text-[9px] mb-2">FILE THIẾT KẾ ĐÃ GỬI IN:</span>
                           <div className="p-3 bg-brand-ivory border rounded flex items-center justify-between gap-3 overflow-hidden text-ellipsis">
                             <div className="flex items-center gap-2 w-2/3">
-                              <img src={selectedTrackOrder.design_file_url} className="w-8 h-8 object-cover rounded border" alt="decal file design" />
+                              <img src={selectedTrackOrder.design_file_url} className="w-8 h-8 object-cover rounded border" alt="design preview" />
                               <div className="truncate text-[11px]">
                                 <p className="font-mono font-medium truncate text-brand-charcoal">{selectedTrackOrder.design_file_name}</p>
-                                <p className="text-[9px] text-brand-muted">Decal in gốc chuẩn studio</p>
+                                <p className="text-[9px] text-brand-muted">Decal in gốc độ phân giải cao</p>
                               </div>
                             </div>
                             <a
@@ -499,29 +473,29 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
                               rel="noreferrer"
                               className="text-[10px] text-brand-gold hover:underline font-semibold flex-shrink-0"
                             >
-                              TẢI FILE GỐC
+                              XEM FILE GỐC
                             </a>
                           </div>
                         </div>
 
                         <div className="pt-3.5 grid grid-cols-2 gap-4">
                           <div>
-                            <span className="text-brand-muted block font-light">MÔ ĐÊL PHÔI:</span>
+                            <span className="text-brand-muted block font-light">MÔ ĐÊL PHÔI ÁO:</span>
                             <strong className="text-brand-charcoal font-semibold">{selectedTrackOrder.shirt_type}</strong>
                           </div>
                           <div>
-                            <span className="text-brand-muted block font-light">KÍCH CỠ ĐẶT:</span>
+                            <span className="text-brand-muted block font-light">KÍCH THƯỚC:</span>
                             <strong className="text-brand-charcoal font-semibold">Size {selectedTrackOrder.shirt_size}</strong>
                           </div>
                         </div>
 
                         <div className="pt-3.5 grid grid-cols-2 gap-4">
                           <div>
-                            <span className="text-brand-muted block font-light">SỐ LƯỢNG IN:</span>
-                            <strong className="text-brand-charcoal font-semibold">{selectedTrackOrder.quantity} chiếc t-shirt</strong>
+                            <span className="text-brand-muted block font-light">SỐ LƯỢNG ĐẶT:</span>
+                            <strong className="text-brand-charcoal font-semibold">{selectedTrackOrder.quantity} chiếc</strong>
                           </div>
                           <div>
-                            <span className="text-brand-muted block font-light">MÀU SẮC ĐÃ CHỌN:</span>
+                            <span className="text-brand-muted block font-light">MÀU ÁO ÁP DỤNG:</span>
                             <span className="flex items-center gap-1.5">
                               <span className="w-3.5 h-3.5 rounded-full border border-brand-charcoal/20" style={{ backgroundColor: selectedTrackOrder.shirt_color }} />
                               <span className="font-mono text-[11px] text-brand-muted">{selectedTrackOrder.shirt_color}</span>
@@ -531,22 +505,22 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
 
                         {selectedTrackOrder.notes && (
                           <div className="pt-3.5">
-                            <span className="text-brand-muted block font-light">YÊU CẦU / GHI CHÚ KỸ THUẬT:</span>
+                            <span className="text-brand-muted block font-light">GHI CHÚ KỸ THUẬT:</span>
                             <p className="text-brand-charcoal mt-1 whitespace-pre-line leading-relaxed font-light">{selectedTrackOrder.notes}</p>
                           </div>
                         )}
 
                         <div className="pt-3.5">
-                          <span className="text-brand-muted block font-light">ĐỊA CHỈ & THÔNG TIN GHIM GIAO:</span>
+                          <span className="text-brand-muted block font-light">THÔNG TIN GIAO NHẬN:</span>
                           <div className="mt-1 space-y-1 font-light leading-relaxed">
-                            <p><strong className="font-medium text-brand-charcoal">Khách nhận:</strong> {selectedTrackOrder.customer_name}</p>
+                            <p><strong className="font-medium text-brand-charcoal">Người nhận:</strong> {selectedTrackOrder.customer_name}</p>
                             <p><strong className="font-medium text-brand-charcoal">Số điện thoại:</strong> {selectedTrackOrder.customer_phone}</p>
-                            <p><strong className="font-medium text-brand-charcoal">Địa cụ thể:</strong> {selectedTrackOrder.customer_address}</p>
+                            <p><strong className="font-medium text-brand-charcoal">Địa chỉ nhận hàng:</strong> {selectedTrackOrder.customer_address}</p>
                           </div>
                         </div>
 
                         <div className="pt-3.5 flex justify-between items-center text-sm font-bold text-brand-gold bg-brand-cream/40 p-4 rounded mt-4">
-                          <span>TỔNG THƯƠNG VỤ SƠ BỘ:</span>
+                          <span>TỔNG CHI PHÍ TẠM TÍNH:</span>
                           <span className="text-base">{selectedTrackOrder.price_calc.toLocaleString('vi-VN')} đ</span>
                         </div>
 
@@ -556,9 +530,9 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
                   ) : (
                     <div className="bg-brand-cream/10 border border-brand-charcoal/10 border-dashed p-16 text-center rounded space-y-3">
                       <Eye size={36} className="text-brand-muted mx-auto" />
-                      <h4 className="text-sm font-serif">Chọn một đơn đặt in bất kỳ</h4>
+                      <h4 className="text-sm font-serif">Chọn một hóa đơn bất kỳ</h4>
                       <p className="text-xs text-brand-muted font-light max-w-xs mx-auto">
-                        Nhấp vào thẻ hóa đơn bên trái để tra cứu tiến độ in dập mực của màng in PET dẻo nhiệt và thông tin trung chuyển từ Supabase.
+                        Bấm vào thẻ hóa đơn bên danh sách trái để tra cứu chi tiết tiến độ nén keo phim PET và luồng trung chuyển đơn hàng.
                       </p>
                     </div>
                   )}
