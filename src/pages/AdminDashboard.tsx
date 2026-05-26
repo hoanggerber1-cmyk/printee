@@ -76,14 +76,12 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
     }
   }
 
-  // --- HÀM XÁC THỰC BẢO MẬT MỚI NHẤT (CÓ CHECK PASSWORD) ---
   const handleAdminLogin = async (e: FormEvent) => {
     e.preventDefault();
-    setErr(''); // Xóa lỗi cũ
+    setErr(''); 
     try {
       const match = await dbSim.admins.getByEmail(email) as any;
       if (match) {
-        // KIỂM TRA MẬT KHẨU
         if (match.password === password) {
           setAdminUser(match); 
           showToast(`Đăng nhập thành công!`);
@@ -98,7 +96,6 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
     }
   };
 
-  // UPLOADS
   const handleSingleImageUpload = async (e: ChangeEvent<HTMLInputElement>, bucket: any, callback: (url: string) => void) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -109,36 +106,43 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
     } catch (err: any) { showToast(`Lỗi: ${err.message}`, 'error'); } finally { setUploadLoading(false); }
   };
 
-  const handleMultipleImagesUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    try {
-      setUploadLoading(true); showToast(`Đang tải lên ${files.length} ảnh...`);
-      const uploadedUrls: string[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const url = await uploadToStorage('products', files[i]);
-        uploadedUrls.push(url);
-      }
-      setEditingProduct(prev => ({ ...prev, images: [...(prev?.images || []), ...uploadedUrls] }));
-      showToast('Đồng bộ ảnh hoàn tất!');
-    } catch (err: any) { showToast(`Lỗi: ${err.message}`, 'error'); } finally { setUploadLoading(false); }
-  };
-
-  // CRUD SẢN PHẨM, DANH MỤC, BANNER
   const handleSaveProduct = async (e: FormEvent) => {
     e.preventDefault();
     if (!editingProduct?.name || !editingProduct?.price) return showToast('Cần điền Tên và Giá!', 'error');
     
-    // Nếu sản phẩm mới chưa chọn category_id, tự động gán ID của danh mục đầu tiên trong danh sách
+    // Lọc lại những màu sắc chưa up ảnh hoặc ảnh chưa có màu
+    const finalColors: string[] = [];
+    const finalImages: string[] = [];
+    
+    (editingProduct.colors || []).forEach((color, i) => {
+      const img = (editingProduct.images || [])[i];
+      if (color && img) {
+        finalColors.push(color);
+        finalImages.push(img);
+      }
+    });
+
+    if (finalColors.length === 0) {
+      return showToast('Vui lòng thêm ít nhất 1 màu và tải lên 1 ảnh cho màu đó!', 'error');
+    }
+    
     const finalCategoryId = editingProduct.category_id || (categories.length > 0 ? categories[0].id : '');
     
     const full: Product = {
-      id: editingProduct.id || `prod-${Date.now()}`, name: editingProduct.name, description: editingProduct.description || '',
-      category_id: finalCategoryId, price: Number(editingProduct.price),
+      id: editingProduct.id || `prod-${Date.now()}`, 
+      name: editingProduct.name, 
+      description: editingProduct.description || '',
+      category_id: finalCategoryId, 
+      price: Number(editingProduct.price),
       original_price: editingProduct.original_price ? Number(editingProduct.original_price) : undefined,
-      colors: editingProduct.colors || [], sizes: editingProduct.sizes || [], images: editingProduct.images || [],
-      status: editingProduct.status as any || 'active', inventory: Number(editingProduct.inventory) || 0,
-      is_featured: !!editingProduct.is_featured, is_deleted: !!editingProduct.is_deleted, created_at: editingProduct.created_at || new Date().toISOString()
+      colors: finalColors, // Lưu mảng màu đã làm sạch
+      sizes: editingProduct.sizes || ['S', 'M', 'L', 'XL'], 
+      images: finalImages, // Lưu mảng ảnh đã làm sạch
+      status: editingProduct.status as any || 'active', 
+      inventory: Number(editingProduct.inventory) || 0,
+      is_featured: !!editingProduct.is_featured, 
+      is_deleted: !!editingProduct.is_deleted, 
+      created_at: editingProduct.created_at || new Date().toISOString()
     };
     await dbSim.products.save(full); showToast('Lưu sản phẩm thành công!'); setEditingProduct(null); loadAdminData();
   };
@@ -180,7 +184,6 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
     showToast('Cập nhật diện mạo website thành công!'); loadAdminData();
   };
 
-  // QUẢN LÝ ĐƠN HÀNG
   const isBlankOrder = (o: CustomOrder) => o.customer_email === 'khachvanglai@printee.com' || o.design_file_name?.includes('Mua phôi trơn');
   
   const handleUpdateOrderStatus = async (orderId: string, newStatus: CustomOrder['status']) => {
@@ -407,200 +410,33 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
                 {/* TAB SẢN PHẨM */}
                 {activeTab === 'products' && (
                   <div className="space-y-4 animate-fadeIn">
-                    <div className="flex justify-between items-center"><h3 className="font-bold text-sm uppercase">Kho sản phẩm & Áo Phôi</h3>
-                    <button onClick={() => setEditingProduct({ images: [], sizes: ['S','M','L','XL'], colors: ['#111111','#FFFFFF'], inventory: 100, price: 150000 })} className="bg-brand-charcoal text-white text-xs px-4 py-2 rounded flex items-center gap-1"><Plus size={12}/> Thêm sản phẩm</button></div>
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-bold text-sm uppercase">Kho sản phẩm & Áo Phôi</h3>
+                      <button onClick={() => setEditingProduct({ images: [], sizes: ['S','M','L','XL'], colors: [], inventory: 100, price: 150000 })} className="bg-brand-charcoal text-white text-xs px-4 py-2 rounded flex items-center gap-1">
+                        <Plus size={12}/> Thêm sản phẩm
+                      </button>
+                    </div>
+                    
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                       {products.map(p => (
-                        <div key={p.id} className="bg-white border rounded p-4 space-y-2 flex flex-col justify-between">
+                        <div key={p.id} className="bg-white border rounded p-4 space-y-2 flex flex-col justify-between hover:shadow-lg transition">
                           <img src={p.images?.[0] || 'https://via.placeholder.com/150'} className="w-full h-40 object-cover rounded border" alt=""/>
                           <h4 className="font-bold text-sm mt-2 line-clamp-1">{p.name}</h4>
-                          <div className="flex gap-2 pt-2 border-t"><button onClick={() => setEditingProduct(p)} className="w-1/2 bg-gray-100 hover:bg-gray-200 text-xs py-1.5 rounded font-bold">Sửa</button><button onClick={() => handleDelete('prod', p.id)} className="w-1/2 text-red-600 border border-red-100 text-xs py-1.5 rounded font-bold">Xóa</button></div>
+                          <div className="flex gap-2 pt-2 border-t">
+                            <button onClick={() => setEditingProduct(p)} className="w-1/2 bg-gray-100 hover:bg-gray-200 text-xs py-1.5 rounded font-bold">Sửa</button>
+                            <button onClick={() => handleDelete('prod', p.id)} className="w-1/2 text-red-600 border border-red-100 text-xs py-1.5 rounded font-bold hover:bg-red-50">Xóa</button>
+                          </div>
                         </div>
                       ))}
                     </div>
                     
-                    {/* MODAL SOẠN SẢN PHẨM (ĐÃ CẬP NHẬT HOÀN CHỈNH) */}
+                    {/* MODAL SOẠN SẢN PHẨM (ĐÃ NÂNG CẤP TÍNH NĂNG NHÓM MÀU & ẢNH) */}
                     {editingProduct && (
                       <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
                         <form onSubmit={handleSaveProduct} className="bg-white rounded-lg w-full max-w-3xl space-y-0 text-xs max-h-[90vh] overflow-y-auto font-sans flex flex-col shadow-2xl">
-                          <div className="p-4 bg-brand-charcoal text-white flex justify-between items-center">
+                          <div className="p-4 bg-brand-charcoal text-white flex justify-between items-center sticky top-0 z-10">
                             <h4 className="font-bold text-sm uppercase tracking-wider">Cấu Hình Thông Tin Sản Phẩm</h4>
-                            <button type="button" onClick={() => setEditingProduct(null)}>✕ ĐÓNG</button>
+                            <button type="button" onClick={() => setEditingProduct(null)} className="hover:text-gray-300 font-bold">✕ ĐÓNG</button>
                           </div>
                           
-                          <div className="p-6 space-y-6 flex-1 overflow-y-auto text-left">
-                            {/* 1. Hình ảnh sản phẩm */}
-                            <div className="space-y-2 bg-gray-50 p-4 border rounded">
-                              <label className="block font-bold text-gray-700">Hình ảnh sản phẩm (Có thể chọn nhiều ảnh)</label>
-                              <input type="file" multiple accept="image/*" onChange={handleMultipleImagesUpload} className="w-full border p-2 bg-white rounded" />
-                              {/* Preview danh sách ảnh đang gán cho sản phẩm */}
-                              {editingProduct.images && editingProduct.images.length > 0 && (
-                                <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-dashed">
-                                  {editingProduct.images.map((img, idx) => (
-                                    <div key={idx} className="relative group border rounded p-1 bg-white">
-                                      <img src={img} className="h-16 w-16 object-cover rounded" alt={`uploaded-${idx}`} />
-                                      <button 
-                                        type="button" 
-                                        onClick={() => {
-                                          const filtered = editingProduct.images?.filter((_, i) => i !== idx);
-                                          setEditingProduct({...editingProduct, images: filtered});
-                                        }}
-                                        className="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold shadow hover:bg-red-700"
-                                        title="Xóa ảnh này"
-                                      >
-                                        ✕
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* 2. Tên và Danh mục liên kết */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <label className="font-bold block mb-1 text-gray-700">Tên sản phẩm / Phôi áo</label>
-                                <input type="text" required value={editingProduct.name || ''} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full border p-2.5 rounded bg-white outline-none focus:border-brand-gold"/>
-                              </div>
-                              <div>
-                                <label className="font-bold block mb-1 text-gray-700">Thuộc danh mục phôi</label>
-                                <select 
-                                  value={editingProduct.category_id || (categories.length > 0 ? categories[0].id : '')} 
-                                  onChange={e => setEditingProduct({...editingProduct, category_id: e.target.value})} 
-                                  className="w-full border p-2.5 rounded bg-white font-medium outline-none focus:border-brand-gold"
-                                >
-                                  {categories.length === 0 && <option value="">-- Chưa có danh mục nào --</option>}
-                                  {categories.map(cat => (
-                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-
-                            {/* 3. Giá cả và Kho số lượng */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <label className="font-bold block mb-1 text-gray-700">Giá bán gốc (VNĐ)</label>
-                                <input type="number" required value={editingProduct.price || ''} onChange={e => setEditingProduct({...editingProduct, price: Number(e.target.value)})} className="w-full border p-2.5 rounded bg-white outline-none focus:border-brand-gold font-mono"/>
-                              </div>
-                              <div>
-                                <label className="font-bold block mb-1 text-gray-700">Số lượng tồn kho ban đầu</label>
-                                <input type="number" value={editingProduct.inventory ?? 100} onChange={e => setEditingProduct({...editingProduct, inventory: Number(e.target.value)})} className="w-full border p-2.5 rounded bg-white outline-none focus:border-brand-gold font-mono"/>
-                              </div>
-                            </div>
-
-                            {/* 4. Bảng màu sắc chi tiết cho phôi thời trang */}
-                            <div className="space-y-2">
-                              <label className="font-bold block text-gray-700">Màu sắc sản phẩm hỗ trợ (Tick chọn các màu muốn áp dụng):</label>
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-                                {[
-                                  { label: 'Đen Trơn', hex: '#111111' }, { label: 'Trắng Sạch', hex: '#FFFFFF' },
-                                  { label: 'Xám Tiêu', hex: '#7E7C77' }, { label: 'Xanh Navy', hex: '#1B2C3F' },
-                                  { label: 'Xanh Rêu', hex: '#3B4C3A' }, { label: 'Kem Ivory', hex: '#F4EFEB' },
-                                  { label: 'Cam Street', hex: '#E36414' }, { label: 'Đỏ Đô/Burgundy', hex: '#591A2A' }
-                                ].map(color => {
-                                  const isSelected = editingProduct.colors?.includes(color.hex);
-                                  return (
-                                    <label key={color.hex} className={`flex items-center gap-2.5 border p-2.5 rounded cursor-pointer select-none transition ${isSelected ? 'border-brand-gold bg-yellow-50/70 shadow-sm font-bold' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
-                                      <input 
-                                        type="checkbox" 
-                                        checked={isSelected || false}
-                                        onChange={(e) => {
-                                          const currentColors = editingProduct.colors || [];
-                                          if (e.target.checked) {
-                                            setEditingProduct({...editingProduct, colors: [...currentColors, color.hex]});
-                                          } else {
-                                            setEditingProduct({...editingProduct, colors: currentColors.filter(c => c !== color.hex)});
-                                          }
-                                        }}
-                                        className="rounded border-gray-300 text-brand-gold focus:ring-brand-gold h-3.5 w-3.5 cursor-pointer"
-                                      />
-                                      <div 
-                                        className={`w-4 h-4 rounded-full border shadow-inner ${color.hex === '#FFFFFF' ? 'border-gray-300' : 'border-transparent'}`} 
-                                        style={{ backgroundColor: color.hex }}
-                                      ></div>
-                                      <span className="text-[11px] truncate">{color.label}</span>
-                                    </label>
-                                  );
-                                })}
-                              </div>
-                            </div>
-
-                            {/* 5. Mô tả chi tiết */}
-                            <div>
-                              <label className="font-bold block mb-1 text-gray-700">Mô tả thông số chi tiết sản phẩm</label>
-                              <textarea rows={4} value={editingProduct.description || ''} onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} className="w-full border p-2.5 rounded bg-white outline-none focus:border-brand-gold" placeholder="Nhập chất liệu vải, định lượng GSM, cách bảo quản hoặc hướng dẫn chọn size..."/>
-                            </div>
-                          </div>
-                          
-                          <div className="p-4 bg-gray-100 border-t flex gap-4">
-                            <button type="submit" className="flex-1 bg-brand-gold py-3 font-bold uppercase rounded shadow hover:bg-yellow-500 transition text-brand-charcoal tracking-widest text-xs">
-                              LƯU THÔNG TIN SẢN PHẨM
-                            </button>
-                          </div>
-                        </form>
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                {/* TAB DANH MỤC */}
-                {activeTab === 'categories' && (
-                  <div className="space-y-4 animate-fadeIn">
-                    <div className="flex justify-between items-center"><h3 className="font-bold text-sm uppercase">Danh mục phôi</h3><button onClick={() => setEditingCategory({ active: true, sort_order: 1 })} className="bg-brand-charcoal text-white text-xs px-4 py-2 rounded flex items-center gap-1"><Plus size={12}/> Thêm danh mục</button></div>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      {categories.map(c => (
-                        <div key={c.id} className="bg-white border rounded p-4 space-y-2">
-                          <img src={c.image_url || 'https://via.placeholder.com/150'} className="w-full h-32 object-cover rounded border" alt=""/>
-                          <h4 className="font-bold text-sm">{c.name}</h4>
-                          <div className="flex gap-2"><button onClick={() => setEditingCategory(c)} className="border text-xs px-2 py-1 rounded">Sửa</button><button onClick={() => handleDelete('cat', c.id)} className="text-red-600 border text-xs px-2 py-1 rounded">Xóa</button></div>
-                        </div>
-                      ))}
-                    </div>
-                    {editingCategory && (
-                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                        <form onSubmit={handleSaveCategory} className="bg-white p-6 rounded w-full max-w-sm space-y-4 text-xs">
-                          <h4 className="font-bold text-sm border-b pb-2">CHỈNH SỬA DANH MỤC</h4>
-                          <input type="file" accept="image/*" onChange={e => handleSingleImageUpload(e, 'products', (url) => setEditingCategory({...editingCategory, image_url: url}))} className="w-full border p-2" />
-                          <input type="text" placeholder="Tên danh mục..." required value={editingCategory.name || ''} onChange={e => setEditingCategory({...editingCategory, name: e.target.value})} className="w-full border p-2 rounded"/>
-                          <div className="flex gap-2"><button type="submit" className="w-1/2 bg-brand-gold py-2 font-bold rounded">Lưu</button><button type="button" onClick={() => setEditingCategory(null)} className="w-1/2 bg-gray-200 py-2 rounded">Đóng</button></div>
-                        </form>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* TAB BANNERS */}
-                {activeTab === 'banners' && (
-                  <div className="space-y-4 animate-fadeIn">
-                    <div className="flex justify-between items-center"><h3 className="font-bold text-sm uppercase">Banner Trang Chủ</h3><button onClick={() => setEditingBanner({ active: true, sort_order: 1 })} className="bg-brand-charcoal text-white text-xs px-4 py-2 rounded flex items-center gap-1"><Plus size={12}/> Thêm Banner</button></div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {banners.map(b => (
-                        <div key={b.id} className="bg-white border rounded p-4 space-y-3">
-                          <img src={b.image_url} className="w-full h-40 object-cover rounded border" alt=""/>
-                          <h4 className="font-bold text-sm">{b.title}</h4>
-                          <div className="flex gap-2"><button onClick={() => setEditingBanner(b)} className="border text-xs px-3 py-1 rounded">Sửa</button><button onClick={() => handleDelete('banner', b.id)} className="text-red-600 border text-xs px-3 py-1 rounded">Xóa</button></div>
-                        </div>
-                      ))}
-                    </div>
-                    {editingBanner && (
-                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                        <form onSubmit={handleSaveBanner} className="bg-white p-6 rounded w-full max-w-md space-y-4 text-xs">
-                          <h4 className="font-bold text-sm border-b pb-2">CHỈNH SỬA BANNER</h4>
-                          <input type="file" accept="image/*" onChange={e => handleSingleImageUpload(e, 'banners', (url) => setEditingBanner({...editingBanner, image_url: url}))} className="w-full border p-2" />
-                          <input type="text" placeholder="Tiêu đề..." required value={editingBanner.title || ''} onChange={e => setEditingBanner({...editingBanner, title: e.target.value})} className="w-full border p-2 rounded"/>
-                          <div className="flex gap-2"><button type="submit" className="w-1/2 bg-brand-gold py-2 font-bold rounded">Lưu</button><button type="button" onClick={() => setEditingBanner(null)} className="w-1/2 bg-gray-200 py-2 rounded">Đóng</button></div>
-                        </form>
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+                          <div className="p-6 space-y-6 flex-1 text-left bg-gray-50/
