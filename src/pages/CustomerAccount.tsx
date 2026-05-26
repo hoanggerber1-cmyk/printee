@@ -67,10 +67,7 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
         setCustomerUser({ email: existing.email, full_name: existing.full_name });
         setSuccessMsg('Đăng nhập thành công!');
       } else {
-        // Create dynamic customer if password matches some criteria or let them sign up
-        // For a seamless UX in preview iframe, if the account doesn't exist, we can register them instantly
-        // or notify clearly
-        setErrorMsg('Tài khoản chưa tồn tại hoặc Email chưa đặt đơn. Quý khách vui lòng chọn ĐĂNG KÝ ở bên dưới.');
+        setErrorMsg('Tài khoản chưa tồn tại. Quý khách vui lòng chọn ĐĂNG KÝ ở bên dưới.');
       }
     } 
     
@@ -92,7 +89,6 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
         
         setCustomerUser({ email, full_name: fullName });
         setSuccessMsg('Đăng ký và đăng nhập thành công!');
-        setAuthMode('login');
       } catch (err) {
         setErrorMsg('Có lỗi xảy ra trong quá trình thiết lập tài khoản.');
       }
@@ -104,8 +100,7 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
         return;
       }
       
-      setSuccessMsg('Một liên kết phục hồi đã được gửi đến email của bạn qua dịch vụ Supabase Auth.');
-      // Keep mode so they can see success
+      setSuccessMsg('Một liên kết phục hồi đã được gửi đến email của bạn.');
     }
   };
 
@@ -155,14 +150,14 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
         
         {!customerUser ? (
           /* ==========================================
-             AUTH FORM INTERFACES
+             AUTH FORM INTERFACES (LOGIN / SIGNUP)
              ========================================== */
-          <div className="max-w-md mx-auto bg-brand-cream/30 border border-brand-charcoal/5 p-8 sm:p-10 rounded-none">
+          <div className="max-w-md mx-auto bg-brand-cream/30 border border-brand-charcoal/5 p-8 sm:p-10 rounded-none shadow-sm relative">
             
             <div className="text-center space-y-2 mb-8">
               <h2 className="text-3xl font-serif text-brand-charcoal uppercase tracking-widest">
                 {authMode === 'login' && 'CỔNG KHÁCH HÀNG'}
-                {authMode === 'signup' && 'ĐĂNG KÝ TÌNH TRẠNG'}
+                {authMode === 'signup' && 'ĐĂNG KÝ THÀNH VIÊN'}
                 {authMode === 'forgot' && 'MẬT KHẨU STUDIO'}
               </h2>
               <p className="text-xs text-brand-muted font-light leading-relaxed uppercase tracking-widest">
@@ -212,7 +207,6 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@design.com"
                   className="w-full bg-brand-ivory border border-brand-charcoal/10 px-3.5 py-2.5 bg-white rounded-none focus:outline-none focus:border-brand-gold font-sans"
-                  id="auth-email"
                 />
               </div>
 
@@ -237,7 +231,6 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     className="w-full bg-brand-ivory border border-brand-charcoal/10 px-3.5 py-2.5 bg-white rounded-none focus:outline-none focus:border-brand-gold font-sans"
-                    id="auth-password"
                   />
                 </div>
               )}
@@ -271,7 +264,6 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
               <button
                 type="submit"
                 className="w-full bg-brand-charcoal hover:bg-brand-gold hover:text-brand-charcoal text-brand-ivory font-sans py-4 uppercase font-semibold tracking-widest transition rounded-none mt-2 cursor-pointer border border-brand-charcoal"
-                id="auth-submit-btn"
               >
                 {authMode === 'login' && 'Xác Nhận Đăng Nhập'}
                 {authMode === 'signup' && 'Xác Nhận Đăng Ký'}
@@ -287,10 +279,9 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
                   Chưa có tài khoản studio?{' '}
                   <button 
                     onClick={() => { setAuthMode('signup'); setErrorMsg(''); setSuccessMsg(''); }} 
-                    className="text-brand-gold font-semibold hover:underline"
-                    id="switch-to-signup"
+                    className="text-brand-gold font-semibold hover:underline uppercase"
                   >
-                    ĐĂNG KÝ NGAY
+                    Đăng ký thành viên
                   </button>
                 </p>
               ) : (
@@ -298,10 +289,9 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
                   Đã có tài khoản studio?{' '}
                   <button 
                     onClick={() => { setAuthMode('login'); setErrorMsg(''); setSuccessMsg(''); }} 
-                    className="text-brand-gold font-semibold hover:underline"
-                    id="switch-to-login"
+                    className="text-brand-gold font-semibold hover:underline uppercase"
                   >
-                    ĐĂNG NHẬP NGAY
+                    Đăng nhập ngay
                   </button>
                 </p>
               )}
@@ -332,7 +322,6 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
                   }}
                   className="p-2 border border-brand-charcoal/20 hover:border-brand-charcoal text-brand-charcoal rounded-none text-xs flex items-center gap-1.5 px-3.5 cursor-pointer"
                   title="Tải lại đơn mới nhất"
-                  id="refresh-orders-btn"
                 >
                   <RefreshCw size={13} className={loadingOrders ? 'animate-spin' : ''} /> Làm mới đơn
                 </button>
@@ -356,7 +345,6 @@ export default function CustomerAccount({ customerUser, setCustomerUser, setCurr
                 <button
                   onClick={() => setCurrentPage('custom-print')}
                   className="bg-brand-gold text-brand-charcoal px-6 py-3.5 text-xs uppercase font-semibold tracking-wider rounded-none inline-block cursor-pointer border border-brand-gold"
-                  id="portal-order-first-btn"
                 >
                   Tải Thiết Kế IN Ngay
                 </button>
