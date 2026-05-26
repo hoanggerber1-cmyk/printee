@@ -25,7 +25,7 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
 
 export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboardProps) {
   const [email, setEmail] = useState('hoanggerber@gmail.com'); 
-  const [password, setPassword] = useState('admin123');
+  const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
 
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -37,7 +37,6 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<AdminTab>('orders');
   
-  // Bộ lọc cho Tab Đơn Hàng
   const [orderFilter, setOrderFilter] = useState<'all' | 'custom' | 'blank'>('all');
   const [productFilter, setProductFilter] = useState<'all' | 'active' | 'draft' | 'deleted'>('all');
 
@@ -77,12 +76,20 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
     }
   }
 
+  // --- HÀM XÁC THỰC BẢO MẬT MỚI NHẤT (CÓ CHECK PASSWORD) ---
   const handleAdminLogin = async (e: FormEvent) => {
     e.preventDefault();
+    setErr(''); // Xóa lỗi cũ
     try {
-      const match = await dbSim.admins.getByEmail(email);
+      const match = await dbSim.admins.getByEmail(email) as any;
       if (match) {
-        setAdminUser(match); showToast(`Đăng nhập thành công!`);
+        // KIỂM TRA MẬT KHẨU
+        if (match.password === password) {
+          setAdminUser(match); 
+          showToast(`Đăng nhập thành công!`);
+        } else {
+          setErr('Mật khẩu không chính xác. Vui lòng nhập lại!');
+        }
       } else {
         setErr('Tài khoản không tồn tại trong hệ thống admin.');
       }
@@ -169,7 +176,7 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
     showToast('Cập nhật diện mạo website thành công!'); loadAdminData();
   };
 
-  // QUẢN LÝ ĐƠN HÀNG (SỬA & XÓA)
+  // QUẢN LÝ ĐƠN HÀNG
   const isBlankOrder = (o: CustomOrder) => o.customer_email === 'khachvanglai@printee.com' || o.design_file_name?.includes('Mua phôi trơn');
   
   const handleUpdateOrderStatus = async (orderId: string, newStatus: CustomOrder['status']) => {
@@ -216,8 +223,8 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
             {err && <div className="p-2 bg-red-900 text-white text-xs text-center rounded">{err}</div>}
             <form onSubmit={handleAdminLogin} className="space-y-4 text-xs">
               <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-brand-charcoal border border-brand-ivory/10 p-3 text-white rounded outline-none" placeholder="Email admin..."/>
-              <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-brand-charcoal border border-brand-ivory/10 p-3 text-white rounded outline-none" placeholder="Mật khẩu..."/>
-              <button type="submit" className="w-full bg-brand-gold text-brand-charcoal py-3 font-bold uppercase tracking-widest rounded">Xác Thực Hệ Thống</button>
+              <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-brand-charcoal border border-brand-ivory/10 p-3 text-white rounded outline-none" placeholder="Mật khẩu (ví dụ: admin123)"/>
+              <button type="submit" className="w-full bg-brand-gold text-brand-charcoal py-3 font-bold uppercase tracking-widest rounded hover:bg-yellow-500 transition">Xác Thực Hệ Thống</button>
             </form>
           </div>
         ) : (
@@ -255,7 +262,7 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
             ) : (
               <div className="space-y-6">
                 
-                {/* 1. TAB ĐƠN HÀNG (ĐÃ PHÂN LOẠI & THÊM SỬA/XÓA) */}
+                {/* TAB ĐƠN HÀNG */}
                 {activeTab === 'orders' && (
                   <div className="space-y-4 font-sans animate-fadeIn">
                     
@@ -266,7 +273,6 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
                       </div>
                     </div>
 
-                    {/* Bộ Lọc Tabs Phân Loại */}
                     <div className="flex gap-2 text-xs">
                       <button onClick={() => setOrderFilter('all')} className={`px-4 py-2 rounded-full font-bold transition ${orderFilter === 'all' ? 'bg-brand-charcoal text-white' : 'bg-white border text-gray-500 hover:bg-gray-50'}`}>Tất cả Đơn ({orders.length})</button>
                       <button onClick={() => setOrderFilter('custom')} className={`px-4 py-2 rounded-full font-bold transition ${orderFilter === 'custom' ? 'bg-brand-gold text-brand-charcoal shadow-sm' : 'bg-white border text-gray-500 hover:bg-gray-50'}`}>Đơn Có Hình In ({orders.filter(o => !isBlankOrder(o)).length})</button>
@@ -378,13 +384,11 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
                   </div>
                 )}
 
-                {/* CÁC TAB KHÁC GIỮ NGUYÊN NHƯ BẢN TRƯỚC ĐỂ TIẾT KIỆM KHÔNG GIAN... */}
-                {/* 2. TAB CÀI ĐẶT WEBSITE TOÀN DIỆN */}
+                {/* TAB CÀI ĐẶT WEBSITE */}
                 {activeTab === 'settings' && siteSettings && (
                   <form onSubmit={handleSaveSettings} className="bg-white border rounded shadow-sm overflow-hidden text-xs font-sans animate-fadeIn">
                     <div className="bg-brand-charcoal text-white p-4">
                       <h3 className="text-sm font-bold uppercase tracking-wider">CẤU HÌNH HIỂN THỊ WEBSITE TOÀN DIỆN</h3>
-                      <p className="text-[10px] text-gray-400 font-light mt-1">Thay đổi ngay lập tức diện mạo, hotline, mã giảm giá và mạng xã hội.</p>
                     </div>
                     <div className="p-6 space-y-8">
                       <div className="space-y-4"><h4 className="font-bold text-brand-gold uppercase border-b pb-1 flex items-center gap-2"><Percent size={14}/> 1. THANH THÔNG BÁO KHUYẾN MÃI (TOPBAR)</h4><div><label className="block text-gray-600 mb-1">Dòng chữ chạy trên cùng</label><input type="text" value={siteSettings.topbar_text || ''} onChange={e => setSiteSettings({...siteSettings, topbar_text: e.target.value})} className="w-full border-2 focus:border-brand-gold p-2.5 rounded bg-yellow-50 font-bold"/></div></div>
@@ -396,25 +400,16 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
                   </form>
                 )}
 
-                {/* 3. TAB KHO PHÔI SẢN PHẨM */}
+                {/* TAB SẢN PHẨM */}
                 {activeTab === 'products' && (
                   <div className="space-y-4 animate-fadeIn">
                     <div className="flex justify-between items-center"><h3 className="font-bold text-sm uppercase">Kho sản phẩm & Áo Phôi</h3>
-                    <button onClick={() => setEditingProduct({ images: [], sizes: ['S','M','L','XL'], colors: ['#111111','#FFFFFF'], inventory: 100, price: 150000 })} className="bg-brand-charcoal text-white text-xs px-4 py-2 rounded flex items-center gap-1"><Plus size={12}/> Thêm sản phẩm mới</button></div>
-                    <div className="flex gap-2 border-b pb-3 text-xs">
-                      <button onClick={() => setProductFilter('all')} className={`px-4 py-2 rounded-full font-bold transition ${productFilter === 'all' ? 'bg-brand-gold text-brand-charcoal' : 'bg-brand-cream/60'}`}>Tất cả</button>
-                      <button onClick={() => setProductFilter('active')} className={`px-4 py-2 rounded-full font-bold transition ${productFilter === 'active' ? 'bg-green-600 text-white' : 'bg-brand-cream/60'}`}>Đang hiển thị</button>
-                      <button onClick={() => setProductFilter('deleted')} className={`px-4 py-2 rounded-full font-bold transition ${productFilter === 'deleted' ? 'bg-rose-600 text-white' : 'bg-brand-cream/60'}`}>Thùng rác</button>
-                    </div>
+                    <button onClick={() => setEditingProduct({ images: [], sizes: ['S','M','L','XL'], colors: ['#111111','#FFFFFF'], inventory: 100, price: 150000 })} className="bg-brand-charcoal text-white text-xs px-4 py-2 rounded flex items-center gap-1"><Plus size={12}/> Thêm sản phẩm</button></div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                      {products.filter(p => productFilter === 'all' ? !p.is_deleted : (productFilter === 'active' ? p.status === 'active' && !p.is_deleted : !!p.is_deleted)).map(p => (
+                      {products.map(p => (
                         <div key={p.id} className="bg-white border rounded p-4 space-y-2 flex flex-col justify-between">
-                          <div className="relative">
-                            {p.original_price && p.original_price > p.price && <span className="absolute top-2 right-2 bg-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">GIẢM GIÁ</span>}
-                            <img src={p.images?.[0] || 'https://via.placeholder.com/150'} className="w-full h-40 object-cover rounded border" alt=""/>
-                            <h4 className="font-bold text-sm mt-2 line-clamp-1">{p.name}</h4>
-                            <div className="flex items-center gap-2"><p className="text-brand-gold font-bold text-sm">{p.price.toLocaleString('vi-VN')} đ</p></div>
-                          </div>
+                          <img src={p.images?.[0] || 'https://via.placeholder.com/150'} className="w-full h-40 object-cover rounded border" alt=""/>
+                          <h4 className="font-bold text-sm mt-2 line-clamp-1">{p.name}</h4>
                           <div className="flex gap-2 pt-2 border-t"><button onClick={() => setEditingProduct(p)} className="w-1/2 bg-gray-100 hover:bg-gray-200 text-xs py-1.5 rounded font-bold">Sửa</button><button onClick={() => handleDelete('prod', p.id)} className="w-1/2 text-red-600 border border-red-100 text-xs py-1.5 rounded font-bold">Xóa</button></div>
                         </div>
                       ))}
@@ -422,31 +417,21 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
                     {editingProduct && (
                       <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
                         <form onSubmit={handleSaveProduct} className="bg-white rounded-lg w-full max-w-3xl space-y-0 text-xs max-h-[90vh] overflow-y-auto font-sans flex flex-col shadow-2xl">
-                          <div className="p-4 bg-brand-charcoal text-white flex justify-between items-center rounded-t-lg"><h4 className="font-bold text-sm uppercase">SOẠN THẢO SẢN PHẨM</h4><button type="button" onClick={() => setEditingProduct(null)}>✕ ĐÓNG</button></div>
+                          <div className="p-4 bg-brand-charcoal text-white flex justify-between items-center"><h4 className="font-bold text-sm">SOẠN SẢN PHẨM</h4><button type="button" onClick={() => setEditingProduct(null)}>✕ ĐÓNG</button></div>
                           <div className="p-6 space-y-6 flex-1 overflow-y-auto">
-                            <div className="space-y-2 bg-gray-50 p-4 border rounded">
-                              <label className="block font-bold">1. HÌNH ẢNH SẢN PHẨM (Tải lên nhiều ảnh cùng lúc)</label>
-                              <div className="border-2 border-dashed border-gray-300 rounded p-6 text-center cursor-pointer bg-white relative"><input type="file" multiple accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleMultipleImagesUpload} /><Upload size={24} className="mx-auto text-gray-400 mb-1.5" /><p className="text-gray-600 font-medium">Bấm vào đây để chọn bộ ảnh tải lên</p></div>
-                              {editingProduct.images && editingProduct.images.length > 0 && (
-                                <div className="grid grid-cols-6 gap-2 pt-2">{editingProduct.images.map((imgUrl, idx) => (<div key={idx} className="relative border bg-white rounded overflow-hidden"><img src={imgUrl} className="w-full h-16 object-cover" alt=""/><button type="button" onClick={() => setEditingProduct({...editingProduct, images: editingProduct.images?.filter((_, i) => i !== idx)})} className="absolute top-0 right-0 bg-red-600 text-white px-1.5 py-0.5 text-[9px]">✕</button></div>))}</div>
-                              )}
-                            </div>
-                            <div className="space-y-4"><h5 className="font-bold border-b pb-1">2. THÔNG TIN CƠ BẢN</h5>
-                              <div><label className="font-bold block mb-1">Tên sản phẩm</label><input type="text" required value={editingProduct.name || ''} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full border p-2.5 rounded bg-gray-50"/></div>
-                              <div><label className="font-bold block mb-1">Danh mục</label><select value={editingProduct.category_id || ''} onChange={e => setEditingProduct({...editingProduct, category_id: e.target.value})} className="w-full border p-2.5 rounded"><option value="">Chọn danh mục...</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-                            </div>
-                            <div className="space-y-4 bg-yellow-50/50 p-4 border border-yellow-100 rounded"><h5 className="font-bold border-b pb-1 text-brand-gold">3. GIÁ CẢ</h5><div className="grid grid-cols-2 gap-6"><div><label className="font-bold block mb-1 text-red-600">Giá bán (VNĐ)</label><input type="number" required value={editingProduct.price || ''} onChange={e => setEditingProduct({...editingProduct, price: Number(e.target.value)})} className="w-full border border-red-200 p-2.5 rounded font-bold text-red-600"/></div><div><label className="font-bold block mb-1 text-gray-500">Giá gốc (để gạch ngang)</label><input type="number" value={editingProduct.original_price || ''} onChange={e => setEditingProduct({...editingProduct, original_price: Number(e.target.value)})} className="w-full border p-2.5 rounded"/></div></div></div>
-                            <div className="grid grid-cols-2 gap-6"><div className="space-y-4"><h5 className="font-bold border-b pb-1">4. PHÂN LOẠI</h5><div><label className="font-bold block mb-1">Dải Size</label><input type="text" value={editingProduct.sizes?.join(', ') || ''} onChange={e => setEditingProduct({...editingProduct, sizes: e.target.value.split(',').map(s=>s.trim())})} className="w-full border p-2.5 rounded uppercase"/></div><div><label className="font-bold block mb-1">Mã Màu (HEX)</label><input type="text" value={editingProduct.colors?.join(', ') || ''} onChange={e => setEditingProduct({...editingProduct, colors: e.target.value.split(',').map(s=>s.trim())})} className="w-full border p-2.5 rounded"/></div></div><div className="space-y-4"><h5 className="font-bold border-b pb-1">5. TỒN KHO</h5><div><label className="font-bold block mb-1">Số lượng</label><input type="number" value={editingProduct.inventory ?? 100} onChange={e => setEditingProduct({...editingProduct, inventory: Number(e.target.value)})} className="w-full border p-2.5 rounded"/></div><div className="flex items-center gap-2 pt-2"><input type="checkbox" id="feature" checked={editingProduct.is_featured} onChange={e => setEditingProduct({...editingProduct, is_featured: e.target.checked})} className="scale-125"/><label htmlFor="feature" className="font-bold">Sản Phẩm Nổi Bật</label></div></div></div>
-                            <div className="space-y-2"><h5 className="font-bold border-b pb-1">6. MÔ TẢ</h5><textarea rows={4} value={editingProduct.description || ''} onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} className="w-full border p-3 rounded"/></div>
+                            <div className="space-y-2 bg-gray-50 p-4 border rounded"><label className="block font-bold">Hình ảnh sản phẩm</label><input type="file" multiple accept="image/*" onChange={handleMultipleImagesUpload} className="w-full border p-2 bg-white" /></div>
+                            <div><label className="font-bold block mb-1">Tên sản phẩm</label><input type="text" required value={editingProduct.name || ''} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full border p-2.5 rounded"/></div>
+                            <div><label className="font-bold block mb-1">Giá bán</label><input type="number" required value={editingProduct.price || ''} onChange={e => setEditingProduct({...editingProduct, price: Number(e.target.value)})} className="w-full border p-2.5 rounded"/></div>
+                            <div><label className="font-bold block mb-1">Mô tả</label><textarea rows={3} value={editingProduct.description || ''} onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} className="w-full border p-2.5 rounded"/></div>
                           </div>
-                          <div className="p-4 bg-gray-100 flex gap-4 rounded-b-lg border-t"><button type="submit" className="flex-1 bg-brand-gold text-brand-charcoal py-3 font-bold uppercase rounded">LƯU SẢN PHẨM</button></div>
+                          <div className="p-4 bg-gray-100"><button type="submit" className="w-full bg-brand-gold py-3 font-bold uppercase rounded">LƯU SẢN PHẨM</button></div>
                         </form>
                       </div>
                     )}
                   </div>
                 )}
                 
-                {/* 4. TAB DANH MỤC */}
+                {/* TAB DANH MỤC */}
                 {activeTab === 'categories' && (
                   <div className="space-y-4 animate-fadeIn">
                     <div className="flex justify-between items-center"><h3 className="font-bold text-sm uppercase">Danh mục phôi</h3><button onClick={() => setEditingCategory({ active: true, sort_order: 1 })} className="bg-brand-charcoal text-white text-xs px-4 py-2 rounded flex items-center gap-1"><Plus size={12}/> Thêm danh mục</button></div>
@@ -463,16 +448,16 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
                       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                         <form onSubmit={handleSaveCategory} className="bg-white p-6 rounded w-full max-w-sm space-y-4 text-xs">
                           <h4 className="font-bold text-sm border-b pb-2">CHỈNH SỬA DANH MỤC</h4>
-                          <div className="border-2 border-dashed rounded p-4 text-center cursor-pointer relative"><input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleSingleImageUpload(e, 'products', (url) => setEditingCategory({...editingCategory, image_url: url}))} /><Upload size={18} className="mx-auto mb-1" /><p>{editingCategory.image_url ? '✓ Đã tải ảnh' : 'Tải ảnh bìa'}</p></div>
+                          <input type="file" accept="image/*" onChange={e => handleSingleImageUpload(e, 'products', (url) => setEditingCategory({...editingCategory, image_url: url}))} className="w-full border p-2" />
                           <input type="text" placeholder="Tên danh mục..." required value={editingCategory.name || ''} onChange={e => setEditingCategory({...editingCategory, name: e.target.value})} className="w-full border p-2 rounded"/>
-                          <div className="flex gap-2"><button type="submit" className="w-1/2 bg-brand-gold py-2 font-bold rounded">Ghi nhận</button><button type="button" onClick={() => setEditingCategory(null)} className="w-1/2 bg-gray-200 py-2 rounded">Đóng</button></div>
+                          <div className="flex gap-2"><button type="submit" className="w-1/2 bg-brand-gold py-2 font-bold rounded">Lưu</button><button type="button" onClick={() => setEditingCategory(null)} className="w-1/2 bg-gray-200 py-2 rounded">Đóng</button></div>
                         </form>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* 5. TAB BANNERS */}
+                {/* TAB BANNERS */}
                 {activeTab === 'banners' && (
                   <div className="space-y-4 animate-fadeIn">
                     <div className="flex justify-between items-center"><h3 className="font-bold text-sm uppercase">Banner Trang Chủ</h3><button onClick={() => setEditingBanner({ active: true, sort_order: 1 })} className="bg-brand-charcoal text-white text-xs px-4 py-2 rounded flex items-center gap-1"><Plus size={12}/> Thêm Banner</button></div>
@@ -489,9 +474,9 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
                       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                         <form onSubmit={handleSaveBanner} className="bg-white p-6 rounded w-full max-w-md space-y-4 text-xs">
                           <h4 className="font-bold text-sm border-b pb-2">CHỈNH SỬA BANNER</h4>
-                          <div className="border-2 border-dashed rounded p-4 text-center cursor-pointer relative"><input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleSingleImageUpload(e, 'banners', (url) => setEditingBanner({...editingBanner, image_url: url}))} /><Upload size={18} className="mx-auto mb-1" /><p>{editingBanner.image_url ? '✓ Đã tải ảnh' : 'Tải ảnh Banner'}</p></div>
+                          <input type="file" accept="image/*" onChange={e => handleSingleImageUpload(e, 'banners', (url) => setEditingBanner({...editingBanner, image_url: url}))} className="w-full border p-2" />
                           <input type="text" placeholder="Tiêu đề..." required value={editingBanner.title || ''} onChange={e => setEditingBanner({...editingBanner, title: e.target.value})} className="w-full border p-2 rounded"/>
-                          <div className="flex gap-2"><button type="submit" className="w-1/2 bg-brand-gold py-2 font-bold rounded">Ghi nhận</button><button type="button" onClick={() => setEditingBanner(null)} className="w-1/2 bg-gray-200 py-2 rounded">Đóng</button></div>
+                          <div className="flex gap-2"><button type="submit" className="w-1/2 bg-brand-gold py-2 font-bold rounded">Lưu</button><button type="button" onClick={() => setEditingBanner(null)} className="w-1/2 bg-gray-200 py-2 rounded">Đóng</button></div>
                         </form>
                       </div>
                     )}
