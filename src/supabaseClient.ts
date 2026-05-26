@@ -70,7 +70,14 @@ export const dbSim = {
       const { data } = await supabase.from('customers').select('*');
       return data || [];
     },
-    async save(item: Customer) { await supabase.from('customers').upsert(item); }
+    async save(item: Customer) { 
+        await supabase.from('customers').upsert(item); 
+    },
+    // BỔ SUNG HÀM TÌM KIẾM ĐƠN LẺ ĐỂ CHỐNG LỘ DATA
+    async getByEmail(email: string): Promise<any> {
+      const { data } = await supabase.from('customers').select('*').ilike('email', email).maybeSingle();
+      return data;
+    }
   },
   admins: {
     async list(): Promise<AdminUser[]> {
@@ -82,7 +89,6 @@ export const dbSim = {
       return data;
     }
   },
-  // PHẦN BỊ MÌNH CẮT PHẠM GÂY LỖI TREO TRANG Ở ĐÂY ĐÃ ĐƯỢC THÊM LẠI
   cms: {
     async get(): Promise<WebsiteCMS> {
       const { data } = await supabase.from('web_cms').select('*').eq('id', 'current').maybeSingle();
