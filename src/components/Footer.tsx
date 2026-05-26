@@ -84,6 +84,10 @@ export default function Footer({ setCurrentPage }: FooterProps) {
             <li><button onClick={() => setCurrentPage('catalog')} className="hover:text-brand-gold transition">Cửa hàng phôi</button></li>
             <li><button onClick={() => setCurrentPage('custom-print')} className="hover:text-brand-gold transition">Đặt in tự thiết kế</button></li>
             <li><button onClick={() => setCurrentPage('lookbook')} className="hover:text-brand-gold transition">Lookbook</button></li>
+            {/* Đây là nút Quản trị, luôn hiển thị cứng ở Footer để Admin tiện bấm */}
+            <li className="pt-2 mt-2 border-t border-brand-charcoal">
+               <button onClick={() => setCurrentPage('admin')} className="text-[10px] uppercase tracking-widest text-brand-gold font-bold hover:text-white transition">CỔNG QUẢN TRỊ VIÊN</button>
+            </li>
           </ul>
         </div>
 
