@@ -101,18 +101,16 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
     try {
       setSubmittingOrder(true);
       
-      // LOGIC MỚI: Lấy đúng hình ảnh tương ứng với màu khách chọn cho Đơn Hàng
       const colorIndex = selectedProduct.colors.indexOf(chosenColor);
       const orderImage = selectedProduct.images[colorIndex !== -1 ? colorIndex : 0] || 'https://via.placeholder.com/150';
       
-      // Tạo cấu trúc đơn hàng đồng bộ trực tiếp vào bảng custom_orders của hệ thống
       const blankOrder: CustomOrder = {
         id: `ord-${Date.now()}`,
         customer_name: guestName,
         customer_email: 'khachvanglai@printee.com',
         customer_phone: guestPhone,
         customer_address: guestAddress,
-        design_file_url: orderImage, // Dùng hình ảnh đúng màu
+        design_file_url: orderImage, 
         design_file_name: 'Mua phôi trơn (Không có file in)',
         shirt_type: selectedProduct.name,
         shirt_color: chosenColor || '#111111',
@@ -124,12 +122,10 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
         created_at: new Date().toISOString()
       };
 
-      // Lưu trực tiếp lên database Supabase thông qua dbSim
       await dbSim.customOrders.save(blankOrder);
       
       showToast('Đặt mua phôi thành công! Shop sẽ liên hệ bạn qua SĐT ngay.');
       
-      // Khởi tạo lại form về trạng thái trống
       setGuestName('');
       setGuestPhone('');
       setGuestAddress('');
@@ -143,7 +139,7 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
     }
   };
 
-  // LOGIC MỚI: Dò tìm hình ảnh hiển thị khớp với màu đang chọn trong Popup
+  // Dò tìm hình ảnh hiển thị khớp với màu đang chọn trong Popup
   let displayImage = 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=800';
   if (selectedProduct) {
       const activeColorIndex = selectedProduct.colors.indexOf(chosenColor);
@@ -153,7 +149,6 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
   return (
     <div className="py-12 bg-brand-ivory animate-fadeIn relative">
       
-      {/* Toast Component */}
       {toast && (
         <div className={`fixed top-24 right-8 z-50 px-6 py-3 rounded shadow-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 animate-fadeIn ${toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-brand-gold text-brand-charcoal'}`}>
           <CheckCircle2 size={14} /> {toast.message}
@@ -242,7 +237,7 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
                     setSelectedProduct(p);
                     setChosenColor(p.colors[0] || '#111111');
                     setChosenSize(p.sizes[0] || 'XL');
-                    setIsGuestFormOpen(false); // Đóng form cũ nếu chuyển sản phẩm
+                    setIsGuestFormOpen(false); 
                   }}
                 >
                   <img src={p.images[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=600'} alt={p.name} className="w-full h-full object-cover grayscale-10 group-hover:grayscale-0 transition duration-700 transform group-hover:scale-102" referrerPolicy="no-referrer" />
@@ -274,14 +269,21 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
           </div>
         )}
 
-        {/* Modal Chi tiết sản phẩm */}
+        {/* Modal Chi tiết sản phẩm (Đã tối ưu UX cho Mobile) */}
         {selectedProduct && (
-          <div className="fixed inset-0 z-50 overflow-y-auto bg-brand-charcoal/75 backdrop-blur-sm flex justify-center items-center p-4 animate-fadeIn">
-            <div className="bg-brand-ivory w-full max-w-4xl border border-brand-charcoal rounded overflow-hidden shadow-2xl relative grid grid-cols-1 md:grid-cols-2">
-              
-              <button onClick={() => { setSelectedProduct(null); setIsGuestFormOpen(false); }} className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-brand-charcoal text-brand-ivory flex items-center justify-center hover:bg-brand-gold transition duration-200 shadow">✕</button>
+          <div className="fixed inset-0 z-[100] overflow-y-auto bg-brand-charcoal/80 backdrop-blur-sm flex justify-center items-start md:items-center p-0 md:p-4 animate-fadeIn">
+            
+            {/* Nút X đóng nổi luôn hiện trên màn hình, tối ưu cho mobile */}
+            <button 
+              onClick={() => { setSelectedProduct(null); setIsGuestFormOpen(false); }} 
+              className="fixed top-4 right-4 md:absolute md:top-4 md:right-4 z-[110] w-10 h-10 md:w-8 md:h-8 rounded-full bg-brand-charcoal/90 text-brand-ivory flex items-center justify-center hover:bg-brand-gold transition duration-200 shadow-xl border border-white/20 backdrop-blur-md"
+            >
+              ✕
+            </button>
 
-              {/* Bên trái: Ảnh (ĐÃ ĐƯỢC CHỈNH SỬA UPDATE TỰ ĐỘNG THEO MÀU) */}
+            <div className="bg-brand-ivory w-full min-h-screen md:min-h-0 md:max-w-4xl border-0 md:border md:border-brand-charcoal md:rounded overflow-hidden shadow-2xl relative grid grid-cols-1 md:grid-cols-2">
+
+              {/* Bên trái: Ảnh */}
               <div className="aspect-[4/5] md:aspect-auto bg-brand-cream relative">
                 <img 
                   src={displayImage} 
@@ -292,9 +294,16 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
               </div>
 
               {/* Bên phải: Nội dung tương tác */}
-              <div className="p-8 flex flex-col justify-between bg-brand-ivory overflow-y-auto max-h-[75vh] md:max-h-[85vh] gap-6">
+              <div className="p-6 md:p-8 flex flex-col justify-between bg-brand-ivory md:overflow-y-auto md:max-h-[85vh] gap-6">
                 
-                {/* HIỂN THỊ CỘT FORM GUEST CHECKOUT NẾU ĐƯỢC KÍCH HOẠT */}
+                {/* Nút quay lại (chỉ hiện trên Mobile cho cực kỳ rõ ràng) */}
+                <button 
+                  onClick={() => { setSelectedProduct(null); setIsGuestFormOpen(false); }} 
+                  className="md:hidden flex items-center gap-2 text-brand-charcoal font-bold text-[11px] uppercase tracking-widest hover:text-brand-gold border-b border-brand-charcoal/10 pb-4 w-fit"
+                >
+                  ← QUAY LẠI CỬA HÀNG
+                </button>
+
                 {isGuestFormOpen ? (
                   <form onSubmit={handleConfirmGuestPurchase} className="space-y-4 animate-slideUp text-xs text-left">
                     <div className="border-b pb-2">
@@ -319,7 +328,6 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
                         <input type="text" required placeholder="Số nhà, tên đường, phường/xã, quận/huyện..." value={guestAddress} onChange={e => setGuestAddress(e.target.value)} className="w-full border p-2.5 rounded bg-white outline-none focus:border-brand-gold text-xs" />
                       </div>
 
-                      {/* Bộ chọn số lượng mua sỉ/lẻ phôi trơn */}
                       <div>
                         <label className="font-bold text-gray-700 block mb-1">Số lượng áo muốn lấy (cái)</label>
                         <div className="flex items-center w-32 border border-brand-charcoal bg-white">
@@ -351,7 +359,6 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
                     </div>
                   </form>
                 ) : (
-                  /* GIAO DIỆN THÔNG TIN CHI TIẾT SẢN PHẨM NHƯ CŨ */
                   <div className="space-y-6 flex flex-col justify-between h-full">
                     <div className="space-y-4 text-left">
                       <div>
@@ -400,8 +407,7 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
                       </div>
                     </div>
 
-                    {/* KHU VỰC 2 LỰA CHỌN NÚT BẤM RÕ RÀNG */}
-                    <div className="pt-4 border-t border-brand-charcoal/10 text-left">
+                    <div className="pt-4 pb-6 md:pb-0 border-t border-brand-charcoal/10 text-left">
                       <div className="flex justify-between items-center mb-4">
                         <span className="text-xs text-brand-muted font-bold">ĐƠN GIÁ PHÔI:</span>
                         <div className="text-right">
@@ -413,17 +419,15 @@ export default function Catalog({ setCurrentPage, setSelectedPreloadGarment }: C
                       </div>
 
                       <div className="flex flex-col gap-3">
-                        {/* Hướng Luồng 1: Mua áo trơn nhanh (Mở form điền SĐT & Địa chỉ) */}
                         <button
                           type="button"
                           onClick={handleOpenGuestForm}
                           className="w-full bg-brand-charcoal text-white hover:bg-black py-4 text-xs font-bold tracking-widest uppercase transition rounded-none flex items-center justify-center gap-2 shadow-md cursor-pointer"
                         >
                           <ShoppingCart size={15} />
-                          <span>MUA ÁO PHÔI TRƠN KHÔNG CẦN ĐĂNG NHẬP</span>
+                          <span>MUA ÁO PHÔI TRƠN NHANH</span>
                         </button>
 
-                        {/* Hướng Luồng 2: Áo kèm thiết kế của khách (Chuyển sang trang đặt in custom) */}
                         <button
                           type="button"
                           onClick={() => handleCreateCustomOrderSim(selectedProduct)}
