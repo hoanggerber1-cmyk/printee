@@ -131,14 +131,29 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
     const finalCategoryId = editingProduct.category_id || (categories.length > 0 ? categories[0].id : '');
     
     const full: Product = {
-      id: editingProduct.id || `prod-${Date.now()}`, name: editingProduct.name, description: editingProduct.description || '',
-      category_id: finalCategoryId, price: Number(editingProduct.price),
+      id: editingProduct.id || `prod-${Date.now()}`, 
+      name: editingProduct.name, 
+      description: editingProduct.description || '',
+      category_id: finalCategoryId, 
+      price: Number(editingProduct.price),
       original_price: editingProduct.original_price ? Number(editingProduct.original_price) : undefined,
-      colors: validColors, sizes: editingProduct.sizes || ['S', 'M', 'L', 'XL'], images: validImages,
-      status: editingProduct.status as any || 'active', inventory: Number(editingProduct.inventory) || 0,
-      is_featured: !!editingProduct.is_featured, is_deleted: !!editingProduct.is_deleted, created_at: editingProduct.created_at || new Date().toISOString()
+      colors: validColors, 
+      sizes: editingProduct.sizes || ['S', 'M', 'L', 'XL'], 
+      images: validImages,
+      status: editingProduct.status as any || 'active', 
+      inventory: Number(editingProduct.inventory) || 0,
+      is_featured: !!editingProduct.is_featured, 
+      is_deleted: !!editingProduct.is_deleted, 
+      created_at: editingProduct.created_at || new Date().toISOString()
     };
-    await dbSim.products.save(full); showToast('Lưu sản phẩm thành công!'); setEditingProduct(null); loadAdminData();
+
+    // Đính kèm dữ liệu trường combo mới vào object lưu trữ Supabase
+    (full as any).combo_discount_percent = editingProduct.combo_discount_percent ? Number(editingProduct.combo_discount_percent) : 0;
+    
+    await dbSim.products.save(full); 
+    showToast('Lưu sản phẩm thành công!'); 
+    setEditingProduct(null); 
+    loadAdminData();
   };
 
   const handleSaveCategory = async (e: FormEvent) => {
@@ -168,12 +183,8 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
     if (!editingTestimonial?.name || !editingTestimonial?.content) return showToast('Vui lòng điền Họ tên và Nội dung đánh giá!', 'error');
     const full = {
       id: editingTestimonial.id || `testi-${Date.now()}`,
-      name: editingTestimonial.name,
-      role: editingTestimonial.role || '',
-      content: editingTestimonial.content,
-      image_url: editingTestimonial.image_url || '',
-      sort_order: Number(editingTestimonial.sort_order) || 1,
-      created_at: editingTestimonial.created_at || new Date().toISOString()
+      name: editingTestimonial.name, role: editingTestimonial.role || '', content: editingTestimonial.content,
+      image_url: editingTestimonial.image_url || '', sort_order: Number(editingTestimonial.sort_order) || 1, created_at: editingTestimonial.created_at || new Date().toISOString()
     };
     await dbSim.testimonials.save(full); showToast('Lưu phản hồi thành công!'); setEditingTestimonial(null); loadAdminData();
   };
@@ -410,7 +421,7 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
                 {/* TAB SẢN PHẨM */}
                 {activeTab === 'products' && (
                   <div className="space-y-4 animate-fadeIn">
-                    <div className="flex justify-between items-center"><h3 className="font-bold text-sm uppercase">Kho sản phẩm & Áo Phôi</h3><button onClick={() => setEditingProduct({ images: [], sizes: ['S','M','L','XL'], colors: [], inventory: 100, price: 150000 })} className="bg-brand-charcoal text-white text-xs px-4 py-2 rounded flex items-center gap-1"><Plus size={12}/> Thêm sản phẩm</button></div>
+                    <div className="flex justify-between items-center"><h3 className="font-bold text-sm uppercase">Kho sản phẩm & Áo Phôi</h3><button onClick={() => setEditingProduct({ images: [], sizes: ['S','M','L','XL'], colors: [], inventory: 100, price: 150000, original_price: undefined, combo_discount_percent: 0 })} className="bg-brand-charcoal text-white text-xs px-4 py-2 rounded flex items-center gap-1"><Plus size={12}/> Thêm sản phẩm</button></div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                       {products.map(p => (
                         <div key={p.id} className="bg-white border rounded p-4 space-y-2 flex flex-col justify-between hover:shadow-lg transition">
@@ -420,6 +431,8 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
                         </div>
                       ))}
                     </div>
+                    
+                    {/* MODAL SOẠN SẢN PHẨM (ĐÃ TÍCH HỢP GIẢM GIÁ & COMBO %) */}
                     {editingProduct && (
                       <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
                         <form onSubmit={handleSaveProduct} className="bg-white rounded-lg w-full max-w-4xl space-y-0 text-xs max-h-[90vh] overflow-y-auto font-sans flex flex-col shadow-2xl">
@@ -436,10 +449,27 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
                                 </select>
                               </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div><label className="font-bold block mb-1 text-gray-700">Giá bán gốc (VNĐ)</label><input type="number" required value={editingProduct.price || ''} onChange={e => setEditingProduct({...editingProduct, price: Number(e.target.value)})} className="w-full border border-gray-300 p-2.5 rounded bg-white outline-none focus:border-brand-gold font-mono"/></div>
-                              <div><label className="font-bold block mb-1 text-gray-700">Số lượng tồn kho</label><input type="number" value={editingProduct.inventory ?? 100} onChange={e => setEditingProduct({...editingProduct, inventory: Number(e.target.value)})} className="w-full border border-gray-300 p-2.5 rounded bg-white outline-none focus:border-brand-gold font-mono"/></div>
+
+                            {/* UPDATE KHU VỰC GIÁ CẢ, GIẢM GIÁ &ƯU ĐÃI COMBO */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 bg-white p-4 border border-gray-200 rounded">
+                              <div>
+                                <label className="font-bold block mb-1 text-gray-700">Giá bán hiện tại (VNĐ) *</label>
+                                <input type="number" required value={editingProduct.price || ''} onChange={e => setEditingProduct({...editingProduct, price: Number(e.target.value)})} className="w-full border border-gray-300 p-2.5 rounded bg-white font-mono text-red-600 font-bold outline-none focus:border-brand-gold"/>
+                              </div>
+                              <div>
+                                <label className="font-bold block mb-1 text-gray-700">Giá cũ chưa giảm (VNĐ)</label>
+                                <input type="number" value={editingProduct.original_price || ''} onChange={e => setEditingProduct({...editingProduct, original_price: e.target.value ? Number(e.target.value) : undefined})} className="w-full border border-gray-300 p-2.5 rounded bg-white font-mono text-gray-400 line-through outline-none focus:border-brand-gold" placeholder="Ví dụ: 200000"/>
+                              </div>
+                              <div>
+                                <label className="font-bold block mb-1 text-gray-700">Số lượng tồn kho</label>
+                                <input type="number" value={editingProduct.inventory ?? 100} onChange={e => setEditingProduct({...editingProduct, inventory: Number(e.target.value)})} className="w-full border border-gray-300 p-2.5 rounded bg-white font-mono outline-none focus:border-brand-gold"/>
+                              </div>
+                              <div>
+                                <label className="font-bold block mb-1 text-brand-gold flex items-center gap-1">Ưu đãi giảm Combo (%)</label>
+                                <input type="number" min="0" max="100" value={(editingProduct as any).combo_discount_percent ?? 0} onChange={e => setEditingProduct({...editingProduct, combo_discount_percent: Number(e.target.value)})} className="w-full border-2 border-brand-gold/40 p-2.5 rounded bg-yellow-50/50 font-mono font-bold outline-none focus:border-brand-gold" placeholder="Ví dụ: 10"/>
+                              </div>
                             </div>
+
                             <div className="space-y-3 bg-white p-5 border border-gray-200 rounded shadow-sm">
                               <div className="flex justify-between items-center pb-3 border-b border-gray-200">
                                 <label className="font-bold text-brand-charcoal uppercase tracking-wider text-sm flex items-center gap-2"><Palette size={16} className="text-brand-gold" /> Màu sắc & Hình ảnh tương ứng</label>
@@ -513,9 +543,7 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
                   </div>
                 )}
 
-                {/* ==========================================
-                   TAB MỚI: QUẢN LÝ PHẢN HỒI KHÁCH HÀNG (TESTIMONIALS)
-                   ========================================== */}
+                {/* TAB PHẢN HỒI */}
                 {activeTab === 'testimonials' && (
                   <div className="space-y-4 animate-fadeIn">
                     <div className="flex justify-between items-center">
@@ -525,7 +553,6 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
                       </div>
                       <button onClick={() => setEditingTestimonial({ sort_order: 1, image_url: '' })} className="bg-brand-charcoal text-white text-xs px-4 py-2 rounded flex items-center gap-1"><Plus size={12}/> Thêm phản hồi</button>
                     </div>
-
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                       {testimonials.map(t => (
                         <div key={t.id} className="bg-white border border-gray-200 rounded p-5 space-y-4 flex flex-col justify-between hover:shadow-md transition">
@@ -539,19 +566,12 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
                             </div>
                             <p className="text-xs text-gray-600 font-light italic leading-relaxed line-clamp-4">"{t.content}"</p>
                           </div>
-                          
                           <div className="flex gap-2 pt-3 border-t border-gray-100 text-xs">
                             <button onClick={() => setEditingTestimonial(t)} className="w-1/2 bg-gray-100 hover:bg-gray-200 py-1.5 font-bold rounded">Sửa</button>
                             <button onClick={() => handleDelete('testi', t.id)} className="w-1/2 text-red-600 border border-red-100 py-1.5 font-bold rounded hover:bg-red-50">Xóa</button>
                           </div>
                         </div>
                       ))}
-
-                      {testimonials.length === 0 && (
-                        <div className="col-span-1 md:col-span-3 text-center p-12 border-2 border-dashed rounded bg-white text-gray-400">
-                          Hệ thống chưa có phản hồi nào. Hãy bấm "Thêm phản hồi" để mồi dữ liệu!
-                        </div>
-                      )}
                     </div>
 
                     {/* MODAL EDIT/CREATE TESTIMONIAL */}
@@ -562,7 +582,6 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
                             <h4 className="font-bold text-sm uppercase tracking-wider">Cấu Hình Phản Hồi Khách Hàng</h4>
                             <button type="button" onClick={() => setEditingTestimonial(null)} className="font-bold">✕</button>
                           </div>
-                          
                           <div className="p-6 space-y-4 text-left">
                             <div>
                               <label className="font-bold block mb-1.5 text-gray-700">Hình ảnh đại diện khách hàng / Đối tác</label>
@@ -571,28 +590,23 @@ export default function AdminDashboard({ adminUser, setAdminUser }: AdminDashboa
                                 <input type="file" accept="image/*" onChange={e => handleSingleImageUpload(e, 'site-assets', (url) => setEditingTestimonial({...editingTestimonial, image_url: url}))} className="flex-1 text-[11px]" />
                               </div>
                             </div>
-
                             <div>
                               <label className="font-bold block mb-1 text-gray-700">Tên khách hàng / Nhà sáng lập</label>
                               <input type="text" required value={editingTestimonial.name || ''} onChange={e => setEditingTestimonial({...editingTestimonial, name: e.target.value})} className="w-full border p-2.5 rounded bg-white outline-none focus:border-brand-gold"/>
                             </div>
-
                             <div>
-                              <label className="font-bold block mb-1 text-gray-700">Chức danh / Tên Thương Hiệu (Ví dụ: Graphic Designer / LIDER Studio)</label>
+                              <label className="font-bold block mb-1 text-gray-700">Chức danh / Tên Thương Hiệu</label>
                               <input type="text" value={editingTestimonial.role || ''} onChange={e => setEditingTestimonial({...editingTestimonial, role: e.target.value})} className="w-full border p-2.5 rounded bg-white outline-none focus:border-brand-gold"/>
                             </div>
-
                             <div>
-                              <label className="font-bold block mb-1 text-gray-700">Thứ tự ưu tiên hiển thị (Số nhỏ đứng trước)</label>
+                              <label className="font-bold block mb-1 text-gray-700">Thứ tự ưu tiên hiển thị</label>
                               <input type="number" value={editingTestimonial.sort_order ?? 1} onChange={e => setEditingTestimonial({...editingTestimonial, sort_order: Number(e.target.value)})} className="w-full border p-2.5 rounded bg-white outline-none focus:border-brand-gold"/>
                             </div>
-
                             <div>
                               <label className="font-bold block mb-1 text-gray-700">Nội dung đánh giá phản hồi</label>
-                              <textarea rows={4} required value={editingTestimonial.content || ''} onChange={e => setEditingTestimonial({...editingTestimonial, content: e.target.value})} className="w-full border p-2.5 rounded bg-white outline-none focus:border-brand-gold" placeholder="Nhập những phản hồi chân thực về độ hoàn thiện phôi, công nghệ in PET dẻo..."/>
+                              <textarea rows={4} required value={editingTestimonial.content || ''} onChange={e => setEditingTestimonial({...editingTestimonial, content: e.target.value})} className="w-full border p-2.5 rounded bg-white outline-none focus:border-brand-gold"/>
                             </div>
                           </div>
-                          
                           <div className="p-4 bg-gray-100 border-t flex gap-3">
                             <button type="submit" className="flex-1 bg-brand-gold py-3 font-bold uppercase rounded shadow hover:bg-yellow-500 transition text-brand-charcoal tracking-wider">LƯU PHẢN HỒI</button>
                             <button type="button" onClick={() => setEditingTestimonial(null)} className="px-4 bg-gray-200 py-3 font-bold rounded">HỦY</button>
