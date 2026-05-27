@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { dbSim } from '../supabaseClient';
 import { WebsiteCMS, Banner, Product, Category } from '../types';
 import CmsEditableText from '../components/CmsEditableText';
@@ -55,20 +55,25 @@ export default function Home({ setCurrentPage, cmsEditable, onUpdateCms, cmsData
   const [banners, setBanners] = useState<Banner[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [testimonials, setTestimonials] = useState<any[]>([]); // State chứa dữ liệu phản hồi
   const [currentBannerIdx, setCurrentBannerIdx] = useState(0);
 
-  // Tải dữ liệu Banners, Danh mục và Sản phẩm để trưng bày
+  const sliderRef = useRef<HTMLDivElement>(null);
+
+  // Tải dữ liệu Banners, Danh mục, Sản phẩm và Phản hồi để trưng bày
   useEffect(() => {
     async function loadData() {
       try {
-        const [bList, cList, pList] = await Promise.all([
+        const [bList, cList, pList, tList] = await Promise.all([
           dbSim.banners.list(),
           dbSim.categories.list(),
-          dbSim.products.list()
+          dbSim.products.list(),
+          dbSim.testimonials.list() // Kéo dữ liệu từ Database
         ]);
         setBanners(bList.filter(b => b.active));
         setCategories(cList.filter(c => c.active).sort((a, b) => a.sort_order - b.sort_order));
         setProducts(pList.filter(p => p.status === 'active' && !p.is_deleted));
+        setTestimonials(tList);
       } catch (err) {
         console.error(err);
       }
@@ -84,6 +89,25 @@ export default function Home({ setCurrentPage, cmsEditable, onUpdateCms, cmsData
     }, 4000); 
     return () => clearInterval(interval);
   }, [banners.length]);
+
+  // Tính năng tự động lướt Phản hồi (Mỗi 30s)
+  useEffect(() => {
+    if (testimonials.length <= 1) return;
+    const interval = setInterval(() => {
+      if (sliderRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = sliderRef.current;
+        const maxScroll = scrollWidth - clientWidth;
+        
+        // Nếu cuộn đến cuối cùng thì quay lại đầu, ngược lại thì cuộn sang thẻ tiếp theo
+        if (scrollLeft >= maxScroll - 10) {
+          sliderRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          sliderRef.current.scrollBy({ left: clientWidth > 350 ? 400 : clientWidth, behavior: 'smooth' });
+        }
+      }
+    }, 30000); // 30,000ms = 30 giây
+    return () => clearInterval(interval);
+  }, [testimonials.length]);
 
   const handleCmsFieldUpdate = (field: string, value: string) => {
     const updated = { ...cmsData, [field]: value };
@@ -167,7 +191,6 @@ export default function Home({ setCurrentPage, cmsEditable, onUpdateCms, cmsData
             
             {/* Lưới sản phẩm */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Lấy tối đa 8 sản phẩm cho trang chủ đỡ dài */}
               {catProducts.slice(0, 8).map(prod => (
                 <ProductCardHome 
                   key={prod.id} 
@@ -236,28 +259,41 @@ export default function Home({ setCurrentPage, cmsEditable, onUpdateCms, cmsData
         </div>
       </section>
 
-      {/* Feedback khách hàng */}
+      {/* DỮ LIỆU ĐÁNH GIÁ TỪ SUPABASE KÈM CAROUSEL TRƯỢT NGANG */}
       <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" id="testimonials-section">
         <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
           <span className="text-xs tracking-widest text-brand-gold uppercase font-semibold">Phản Hồi Thực Tế</span>
-          <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">{cmsEditable ? <CmsEditableText cmsEditable={cmsEditable} field="feedback_title" value={cmsData.feedback_title} onUpdate={handleCmsFieldUpdate} elementClass="text-brand-charcoal font-serif text-3xl sm:text-4xl text-center" /> : cmsData.feedback_title}</h2>
+          <h2 className="text-3xl sm:text-4xl font-serif tracking-tight">
+            {cmsEditable ? <CmsEditableText cmsEditable={cmsEditable} field="feedback_title" value={cmsData.feedback_title} onUpdate={handleCmsFieldUpdate} elementClass="text-brand-charcoal font-serif text-3xl sm:text-4xl text-center" /> : cmsData.feedback_title}
+          </h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-brand-cream/30 p-8 border border-brand-charcoal/5 space-y-4">
-            <p className="text-base font-serif italic text-brand-charcoal">"Hạt mực cực mịn, co giãn dẻo dai."</p>
-            <p className="text-xs text-brand-muted leading-relaxed font-light">"Tôi đặt in áo thun 260GSM phôi thô bên studio PRINTEE cho đợt mở bán. Nhận hàng thực tế màng PET bám siêu chắc, giặt máy không nứt vỡ hay sần sùi chút nào."</p>
-            <div className="pt-4 border-t border-brand-charcoal/5"><strong className="text-xs font-semibold text-brand-charcoal uppercase block">Kiên Trần (KienArt)</strong><span className="text-[10px] text-brand-muted uppercase tracking-wider font-light">Lead Graphic Designer</span></div>
-          </div>
-          <div className="bg-brand-cream/30 p-8 border border-brand-charcoal/5 space-y-4">
-            <p className="text-base font-serif italic text-brand-charcoal">"Phôi áo thun streetwear tốt nhất Việt Nam"</p>
-            <p className="text-xs text-brand-muted leading-relaxed font-light">"Rất hiếm nơi làm cổ áo bo thun thô rib dệt dầy khít 3cm như ở PRINTEE. Form boxy chuẩn mực làm nổi bật cả artwork thiết kế."</p>
-            <div className="pt-4 border-t border-brand-charcoal/5"><strong className="text-xs font-semibold text-brand-charcoal uppercase block">Huyền Trang (Z-Studio)</strong><span className="text-[10px] text-brand-muted uppercase tracking-wider font-light">Founder & Creative Director</span></div>
-          </div>
-          <div className="bg-brand-cream/30 p-8 border border-brand-charcoal/5 space-y-4">
-            <p className="text-base font-serif italic text-brand-charcoal">"Tuyệt vời giải pháp in cho local brand ít vốn"</p>
-            <p className="text-xs text-brand-muted leading-relaxed font-light">"Chính sách cho phép đặt lẻ từ 1 sản phẩm đã giúp thương hiệu của tôi quay vòng vốn cực tốt mà không lo tồn kho. Chất lượng in ấn giữ chuẩn studio cao cấp!"</p>
-            <div className="pt-4 border-t border-brand-charcoal/5"><strong className="text-xs font-semibold text-brand-charcoal uppercase block">Minh Hoàng (Aether Club)</strong><span className="text-[10px] text-brand-muted uppercase tracking-wider font-light">Independent Fashion Designer</span></div>
-          </div>
+        
+        <div 
+          ref={sliderRef} 
+          className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-8 [&::-webkit-scrollbar]:hidden" 
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {testimonials.map((t, idx) => (
+            <div key={t.id || idx} className="bg-brand-cream/30 p-8 border border-brand-charcoal/5 space-y-4 min-w-[300px] md:min-w-[400px] snap-center shrink-0 flex flex-col justify-between">
+              <p className="text-sm text-brand-muted leading-relaxed font-light italic whitespace-pre-line">"{t.content}"</p>
+              
+              <div className="pt-6 border-t border-brand-charcoal/5 flex items-center gap-4">
+                {t.image_url && (
+                  <img src={t.image_url} alt={t.name} className="w-12 h-12 rounded-full object-cover border border-brand-charcoal/10" referrerPolicy="no-referrer" />
+                )}
+                <div>
+                  <strong className="text-xs font-semibold text-brand-charcoal uppercase block">{t.name}</strong>
+                  <span className="text-[10px] text-brand-muted uppercase tracking-wider font-light">{t.role}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {testimonials.length === 0 && (
+            <div className="w-full text-center text-gray-500 py-10 border border-dashed border-gray-300">
+              Đang chờ cập nhật đánh giá từ khách hàng...
+            </div>
+          )}
         </div>
       </section>
 
