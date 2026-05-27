@@ -73,7 +73,6 @@ export const dbSim = {
     async save(item: Customer) { 
         await supabase.from('customers').upsert(item); 
     },
-    // BỔ SUNG HÀM TÌM KIẾM ĐƠN LẺ ĐỂ CHỐNG LỘ DATA
     async getByEmail(email: string): Promise<any> {
       const { data } = await supabase.from('customers').select('*').ilike('email', email).maybeSingle();
       return data;
@@ -110,6 +109,15 @@ export const dbSim = {
     },
     async save(item: MediaFile) { await supabase.from('media_library').upsert(item); },
     async delete(id: string) { await supabase.from('media_library').delete().eq('id', id); }
+  },
+  // ĐĂNG KÝ THÊM KHU VỰC ĐỌC GHI DỮ LIỆU PHẢN HỒI KHÁCH HÀNG
+  testimonials: {
+    async list(): Promise<any[]> {
+      const { data } = await supabase.from('testimonials').select('*').order('sort_order', { ascending: true });
+      return data || [];
+    },
+    async save(item: any) { await supabase.from('testimonials').upsert(item); },
+    async delete(id: string) { await supabase.from('testimonials').delete().eq('id', id); }
   }
 };
 
